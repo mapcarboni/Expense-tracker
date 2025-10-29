@@ -48,9 +48,9 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/bills` },
     });
 
+    router.replace('/bills');
     if (error) {
       toast.error('Erro ao conectar com Google', { toastId: 'google-error' });
     }
