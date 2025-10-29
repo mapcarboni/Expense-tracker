@@ -50,7 +50,6 @@ export default function LoginPage() {
             <h1 className="text-3xl font-bold text-white">Expense tracker</h1>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-5">
             {/* Email */}
             <div>
@@ -103,7 +102,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Botão */}
+            {/* Botão principal */}
             <button
               type="submit"
               disabled={loading}
@@ -116,6 +115,38 @@ export default function LoginPage() {
               ) : (
                 'Entrar'
               )}
+            </button>
+
+            {/* Divisor */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="h-px bg-gray-700 flex-1"></div>
+              <span className="text-gray-400 text-sm font-medium">ou</span>
+              <div className="h-px bg-gray-700 flex-1"></div>
+            </div>
+
+            {/* Login com Google */}
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                      redirectTo: process.env.NEXT_PUBLIC_REDIRECT_URL,
+                    },
+                  });
+                  if (error) throw error;
+                } catch (err) {
+                  toast.error('Erro ao conectar com Google');
+                }
+              }}
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-700/60 bg-gray-900/50 px-4 py-3.5 font-semibold text-gray-200 hover:bg-gray-800/80 hover:scale-[1.02] transition-all shadow-md backdrop-blur-sm dark:text-gray-100">
+              <img
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              <span>Entrar com Google</span>
             </button>
           </form>
         </div>
