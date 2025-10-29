@@ -13,11 +13,19 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) router.push('/bills');
-    };
-    checkSession();
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.replace('/bills');
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && event === 'SIGNED_IN') {
+        router.replace('/bills');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [router]);
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -26,46 +34,41 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword(form);
-      if (error) throw error;
+    const { error } = await supabase.auth.signInWithPassword(form);
+    setLoading(false);
 
-      toast.success('Login realizado com sucesso!', { toastId: 'login-success' });
-      router.push('/bills');
-    } catch {
+    if (error) {
       toast.error('Email ou senha incorretos', { toastId: 'login-error' });
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    toast.success('Login realizado!', { toastId: 'login-success' });
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/bills`,
-        },
-      });
-      if (error) throw error;
-    } catch {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/bills` },
+    });
+
+    if (error) {
       toast.error('Erro ao conectar com Google', { toastId: 'google-error' });
     }
   };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden bg-gray-950">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900/20 to-gray-900" />
+      {/* Background */}
+      <div className="absolute inset-0 bg-linear-to-br from-gray-900 via-blue-900/20 to-gray-900" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
 
-      {/* Login Card */}
+      {/* Card */}
       <div className="relative z-10 w-full max-w-md">
         <div className="rounded-2xl bg-gray-800/80 backdrop-blur-xl p-8 shadow-2xl border border-gray-700/50">
           {/* Header */}
           <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50">
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50">
               <DollarSign className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white">Expense Tracker</h1>
@@ -78,9 +81,7 @@ export default function LoginPage() {
                 Email
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-500" />
-                </div>
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
                 <input
                   id="email"
                   name="email"
@@ -88,9 +89,9 @@ export default function LoginPage() {
                   value={form.email}
                   onChange={handleChange}
                   required
-                  className="w-full rounded-xl bg-gray-900/50 border border-gray-700 pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                  placeholder="seu@email.com"
                   autoFocus
+                  placeholder="seu@email.com"
+                  className="w-full rounded-xl bg-gray-900/50 border border-gray-700 pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                 />
               </div>
             </div>
@@ -101,9 +102,7 @@ export default function LoginPage() {
                 Senha
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-500" />
-                </div>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
                 <input
                   id="password"
                   name="password"
@@ -111,13 +110,13 @@ export default function LoginPage() {
                   value={form.password}
                   onChange={handleChange}
                   required
-                  className="w-full rounded-xl bg-gray-900/50 border border-gray-700 pl-10 pr-12 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                   placeholder="*******"
+                  className="w-full rounded-xl bg-gray-900/50 border border-gray-700 pl-10 pr-12 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
@@ -127,7 +126,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3.5 font-semibold text-white shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+              className="w-full rounded-xl bg-linear-to-r from-blue-600 to-blue-700 px-4 py-3.5 font-semibold text-white shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -145,7 +144,7 @@ export default function LoginPage() {
               <div className="h-px bg-gray-700 flex-1" />
             </div>
 
-            {/* Google Login */}
+            {/* Google */}
             <button
               type="button"
               onClick={handleGoogleLogin}
