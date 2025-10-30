@@ -13,9 +13,12 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
       if (data.session) router.replace('/bills');
-    });
+    };
+
+    checkSession();
 
     const {
       data: { subscription },
@@ -28,7 +31,10 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -48,9 +54,11 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/bills`,
+      },
     });
 
-    router.replace('/bills');
     if (error) {
       toast.error('Erro ao conectar com Google', { toastId: 'google-error' });
     }
