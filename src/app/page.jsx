@@ -42,6 +42,11 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
+    if (!form.email || !form.password) {
+      toast.error('Preencha todos os campos');
+      return;
+    }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       toast.error('Email inválido');
       return;
@@ -54,11 +59,7 @@ export default function LoginPage() {
     if (error) {
       toast.error('Email ou senha incorretos', { toastId: 'login-error' });
       setLoading(false);
-      return;
     }
-
-    toast.success('Login realizado!', { toastId: 'login-success' });
-    router.replace('/bills');
   };
 
   return (

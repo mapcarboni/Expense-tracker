@@ -13,28 +13,24 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    let ignore = false;
+    const initAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!ignore) {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    });
+    initAuth();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!ignore) {
-        setUser(session?.user ?? null);
-      }
+      setUser(session?.user ?? null);
     });
 
-    return () => {
-      ignore = true;
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signOut = useCallback(async () => {
     try {

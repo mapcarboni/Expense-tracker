@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+:root {
+  --color-bg-primary: 15 23 42;
+  --color-bg-secondary: 31 41 55;
+  --color-accent: 37 99 235;
 }
 
 html {
