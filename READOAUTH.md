@@ -18,8 +18,13 @@
 5. Configure Consent Screen se pedido (External, preencha nome/emails)
 6. **Application type:** Web application
 7. **Authorized redirect URIs:** Cole a Callback URL do Supabase
+   ```
+   https://xxxxx.supabase.co/auth/v1/callback
+   ```
 8. **Create**
 9. Copie **Client ID** e **Client Secret**
+
+⚠️ **Importante:** Adicione APENAS a callback URL do Supabase, não a URL do seu app
 
 ---
 
@@ -32,7 +37,18 @@
 
 ---
 
-## 4. Supabase - Pegar Credenciais do Projeto
+## 4. Supabase - Configurar URLs de Redirect
+
+1. **Authentication → URL Configuration**
+2. **Site URL:** `https://seu-app.vercel.app` (ou localhost para dev)
+3. **Redirect URLs:** Adicione `https://seu-app.vercel.app/*`
+4. **Save**
+
+⚠️ Não use a URL da dashboard do Vercel (vercel.com/...), use a URL do seu app publicado
+
+---
+
+## 5. Supabase - Pegar Credenciais do Projeto
 
 1. **Project Settings → API**
 2. Copie **Project URL** e **anon public key**
