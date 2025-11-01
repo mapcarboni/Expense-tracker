@@ -14,7 +14,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
-      <body suppressHydrationWarning>
+      <body>
         <AuthProvider>{children}</AuthProvider>
         <ToastContainer
           position="top-center"
