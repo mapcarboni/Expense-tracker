@@ -51,14 +51,14 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden bg-gray-950">
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900/20 to-gray-900" />
+      <div className="absolute inset-0 bg-linear-to-br from-gray-900 via-blue-900/20 to-gray-900" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
 
       <div className="relative z-10 w-full max-w-md">
         <div className="rounded-2xl bg-gray-800/80 backdrop-blur-xl p-8 shadow-2xl border border-gray-700/50">
           <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50">
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50">
               <DollarSign className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white">Expense Tracker</h1>
@@ -147,7 +147,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3.5 font-semibold text-white shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+              className="w-full rounded-xl bg-linear-to-r from-blue-600 to-blue-700 px-4 py-3.5 font-semibold text-white shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
