@@ -27,10 +27,6 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!ignore) {
         setUser(session?.user ?? null);
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          router.push('/bills');
-        }
       }
     });
 
