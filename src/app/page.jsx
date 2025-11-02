@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Mail, Lock, DollarSign, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -11,18 +11,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/bills';
 
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        router.replace('/bills');
+        router.replace(returnUrl);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, returnUrl]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,6 +34,9 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}${returnUrl}`,
+      },
     });
 
     if (error) {
@@ -41,11 +46,6 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
-    if (!form.email || !form.password) {
-      toast.error('Preencha todos os campos');
-      return;
-    }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       toast.error('Email inválido');
@@ -59,24 +59,32 @@ export default function LoginPage() {
     if (error) {
       toast.error('Email ou senha incorretos', { toastId: 'login-error' });
       setLoading(false);
+      return;
     }
+
+    toast.success('Login realizado!', { toastId: 'login-success' });
+    router.replace(returnUrl);
   };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden bg-gray-950">
+      {/* Background gradients */}
       <div className="absolute inset-0 bg-linear-to-br from-gray-900 via-blue-900/20 to-gray-900" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
 
       <div className="relative z-10 w-full max-w-md">
         <div className="rounded-2xl bg-gray-800/80 backdrop-blur-xl p-8 shadow-2xl border border-gray-700/50">
+          {/* Header */}
           <div className="mb-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50">
               <DollarSign className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white">Expense Tracker</h1>
+            <p className="mt-2 text-sm text-gray-400">Faça login para gerenciar suas despesas</p>
           </div>
 
+          {/* Google Login */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -102,16 +110,19 @@ export default function LoginPage() {
             Continuar com Google
           </button>
 
+          {/* Divider */}
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-700"></div>
+              <div className="w-full border-t border-gray-700" />
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 bg-gray-800 text-gray-400">ou</span>
             </div>
           </div>
 
+          {/* Email/Password Form */}
           <form onSubmit={handleLogin} className="space-y-5">
+            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email
@@ -132,6 +143,7 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Senha
@@ -157,6 +169,7 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
