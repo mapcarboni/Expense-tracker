@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Check, CreditCard, Calendar } from 'lucide-react';
 import { toNumber, formatMoney } from '@/utils/formatters';
-import { DESTINATIONS, DESTINATION_LABELS } from '@/constants/app';
+import { DESTINATIONS } from '@/constants/app';
 
 export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
   const [paymentChoice, setPaymentChoice] = useState('');
@@ -14,7 +14,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
     }
   }, [isOpen, expense]);
 
-  // ✅ Memoiza cálculos pesados
   const calculations = useMemo(() => {
     if (!expense) return null;
 
@@ -57,7 +56,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
     };
   }, [expense]);
 
-  // ✅ Memoiza lógica de validação
   const hasCashOption = useMemo(() => {
     if (!expense) return false;
     return expense.type === 'OUTROS' ? expense.installments === 1 : true;
@@ -65,7 +63,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
 
   const hasMultipleOptions = hasCashOption;
 
-  // ✅ Callback para confirmar
   const handleConfirm = useCallback(() => {
     if (!destination || (hasMultipleOptions && !paymentChoice)) return;
 
@@ -80,7 +77,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
     onClose();
   }, [destination, hasMultipleOptions, paymentChoice, expense, onConfirm, onClose]);
 
-  // ✅ Memoiza informações de diferença
   const differenceInfo = useMemo(() => {
     if (!calculations || !paymentChoice) {
       return {
@@ -108,7 +104,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 shadow-2xl">
-        {/* Header */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-700 bg-gray-800 px-6 py-4">
           <div>
             <h2 className="text-xl font-semibold text-white">Comparar e Decidir</h2>
@@ -126,11 +121,9 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Comparison or Single Value */}
           {hasMultipleOptions ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Cash Option */}
                 <label
                   className={`block p-4 rounded-lg border-2 cursor-pointer transition-all ${
                     paymentChoice === 'cash'
@@ -162,7 +155,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
                   </div>
                 </label>
 
-                {/* Installment Option */}
                 <label
                   className={`block p-4 rounded-lg border-2 cursor-pointer transition-all ${
                     paymentChoice === 'installment'
@@ -196,7 +188,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
                 </label>
               </div>
 
-              {/* Difference Display */}
               <div
                 className={`p-4 rounded-lg border-2 ${
                   !paymentChoice
@@ -223,7 +214,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
               </div>
             </>
           ) : (
-            /* Single Payment */
             <div className="p-4 rounded-lg border-2 border-blue-500 bg-blue-900/20">
               <div className="text-center">
                 <p className="text-sm text-gray-400 mb-2">Pagamento Único</p>
@@ -237,7 +227,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
             </div>
           )}
 
-          {/* Destination Selector */}
           <div className="border-t border-gray-700 pt-6">
             <h3 className="text-base font-semibold text-white mb-3">
               Onde será lançada a despesa?
@@ -273,7 +262,6 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-3 border-t border-gray-700 pt-4">
             <button
               onClick={onClose}

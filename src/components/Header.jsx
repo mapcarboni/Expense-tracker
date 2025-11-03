@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +33,10 @@ export function Header({
   const [years, setYears] = useState([]);
   const [yearsLoading, setYearsLoading] = useState(true);
 
+  // ✅ Refs para detectar clique fora
+  const menuRef = useRef(null);
+  const buttonRef = useRef(null);
+
   const currentRoute = ROUTES[pathname] || {
     label: 'Expense Tracker',
     icon: PiggyBank,
@@ -43,6 +47,25 @@ export function Header({
   useEffect(() => {
     fetchYears();
   }, []);
+
+  // ✅ Fecha menu ao clicar fora
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        menuRef.current &&
+        buttonRef.current &&
+        !menuRef.current.contains(event.target) &&
+        !buttonRef.current.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
   const fetchYears = async () => {
     try {
@@ -91,54 +114,55 @@ export function Header({
             {/* Menu Hambúrguer */}
             <div className="relative">
               <button
+                ref={buttonRef}
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+                aria-label="Menu">
                 {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
 
               {/* Dropdown Menu */}
               {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute left-0 top-full mt-3 w-72 rounded-xl border border-gray-700 bg-gray-800 shadow-2xl z-40">
-                    <nav className="p-3 space-y-1">
-                      {Object.entries(ROUTES).map(([path, route]) => {
-                        const RouteIcon = route.icon;
-                        const isActive = pathname === path;
+                <div
+                  ref={menuRef}
+                  className="absolute left-0 top-full mt-3 w-72 rounded-xl border border-gray-700 bg-gray-800 shadow-2xl z-40">
+                  <nav className="p-3 space-y-1">
+                    {Object.entries(ROUTES).map(([path, route]) => {
+                      const RouteIcon = route.icon;
+                      const isActive = pathname === path;
 
-                        return (
-                          <Link
-                            key={path}
-                            href={path}
-                            onClick={() => setMenuOpen(false)}
-                            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-base transition-colors ${
-                              isActive
-                                ? 'bg-blue-600/20 text-blue-400'
-                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                            }`}>
-                            <RouteIcon className="h-4 w-4" />
-                            <div className="flex-1">
-                              <div className="font-medium">{route.label}</div>
-                              <div className="text-sm text-gray-500">{route.description}</div>
-                            </div>
-                          </Link>
-                        );
-                      })}
+                      return (
+                        <Link
+                          key={path}
+                          href={path}
+                          onClick={() => setMenuOpen(false)}
+                          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-base transition-colors ${
+                            isActive
+                              ? 'bg-blue-600/20 text-blue-400'
+                              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }`}>
+                          <RouteIcon className="h-4 w-4" />
+                          <div className="flex-1">
+                            <div className="font-medium">{route.label}</div>
+                            <div className="text-sm text-gray-500">{route.description}</div>
+                          </div>
+                        </Link>
+                      );
+                    })}
 
-                      <div className="border-t border-gray-700 mt-2 pt-2">
-                        <button
-                          onClick={() => {
-                            setMenuOpen(false);
-                            signOut();
-                          }}
-                          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-400 hover:bg-red-600/10 transition-colors">
-                          <LogOut className="h-4 w-4" />
-                          <span className="font-medium">Sair</span>
-                        </button>
-                      </div>
-                    </nav>
-                  </div>
-                </>
+                    <div className="border-t border-gray-700 mt-2 pt-2">
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          signOut();
+                        }}
+                        className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-400 hover:bg-red-600/10 transition-colors">
+                        <LogOut className="h-4 w-4" />
+                        <span className="font-medium">Sair</span>
+                      </button>
+                    </div>
+                  </nav>
+                </div>
               )}
             </div>
 
@@ -163,7 +187,7 @@ export function Header({
               </div>
             )}
 
-            {/* Save Button (only show when there are changes) */}
+            {/* Save Button */}
             {hasUnsavedChanges && (
               <button
                 onClick={handleSave}

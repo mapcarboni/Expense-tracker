@@ -96,8 +96,10 @@ export default function DecisionPage() {
     setHasUnsavedChanges(true);
     closeAllExpenseModals();
 
-    setDecidingExpense(expenseData);
-    setIsDecisionModalOpen(true);
+    // ✅ NÃO abre modal de decisão automaticamente
+    toast.success('Despesa salva! Clique em "Decidir Agora" quando quiser.', {
+      toastId: 'expense-saved',
+    });
   };
 
   const handleConfirmDecision = (expenseWithDecision) => {
@@ -221,9 +223,17 @@ export default function DecisionPage() {
                 </span>
                 <p className="font-semibold text-white">{expense.description}</p>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-md bg-yellow-900/20 border border-yellow-600">
-                <span className="text-yellow-400">⚠️</span>
-                <p className="text-sm text-yellow-200">Aguardando decisão</p>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-md bg-yellow-900/20 border border-yellow-600">
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-400">⚠️</span>
+                  <p className="text-sm text-yellow-200">Aguardando decisão</p>
+                </div>
+                <button
+                  onClick={() => handleChangeDecision(expense)}
+                  className="flex items-center gap-1.5 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-yellow-700 transition-colors">
+                  <Check className="h-3.5 w-3.5" />
+                  Decidir Agora
+                </button>
               </div>
             </div>
             <div className="flex gap-1">
@@ -400,7 +410,9 @@ export default function DecisionPage() {
                   <p className="text-gray-400 mb-2">
                     Nenhuma despesa cadastrada para {selectedYear}
                   </p>
-                  <p className="text-sm text-gray-500">Clique em &quot;Nova Despesa&quot; para começar</p>
+                  <p className="text-sm text-gray-500">
+                    Clique em &quot;Nova Despesa&quot; para começar
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -416,47 +428,53 @@ export default function DecisionPage() {
           </div>
         </main>
 
-        <IPTUModal
-          isOpen={isIPTUModalOpen}
-          onClose={closeAllExpenseModals}
-          onSave={handleSaveExpense}
-          year={selectedYear}
-          editData={editingExpense?.type === 'IPTU' ? editingExpense : null}
-        />
+        {/* ✅ Renderização condicional - só renderiza quando aberto */}
+        {isIPTUModalOpen && (
+          <IPTUModal
+            onClose={closeAllExpenseModals}
+            onSave={handleSaveExpense}
+            year={selectedYear}
+            editData={editingExpense?.type === 'IPTU' ? editingExpense : null}
+          />
+        )}
 
-        <IPVAModal
-          isOpen={isIPVAModalOpen}
-          onClose={closeAllExpenseModals}
-          onSave={handleSaveExpense}
-          year={selectedYear}
-          editData={editingExpense?.type === 'IPVA' ? editingExpense : null}
-        />
+        {isIPVAModalOpen && (
+          <IPVAModal
+            onClose={closeAllExpenseModals}
+            onSave={handleSaveExpense}
+            year={selectedYear}
+            editData={editingExpense?.type === 'IPVA' ? editingExpense : null}
+          />
+        )}
 
-        <SeguroModal
-          isOpen={isSeguroModalOpen}
-          onClose={closeAllExpenseModals}
-          onSave={handleSaveExpense}
-          year={selectedYear}
-          editData={editingExpense?.type === 'SEGURO' ? editingExpense : null}
-        />
+        {isSeguroModalOpen && (
+          <SeguroModal
+            onClose={closeAllExpenseModals}
+            onSave={handleSaveExpense}
+            year={selectedYear}
+            editData={editingExpense?.type === 'SEGURO' ? editingExpense : null}
+          />
+        )}
 
-        <OutrosModal
-          isOpen={isOutrosModalOpen}
-          onClose={closeAllExpenseModals}
-          onSave={handleSaveExpense}
-          year={selectedYear}
-          editData={editingExpense?.type === 'OUTROS' ? editingExpense : null}
-        />
+        {isOutrosModalOpen && (
+          <OutrosModal
+            onClose={closeAllExpenseModals}
+            onSave={handleSaveExpense}
+            year={selectedYear}
+            editData={editingExpense?.type === 'OUTROS' ? editingExpense : null}
+          />
+        )}
 
-        <DecisionModal
-          isOpen={isDecisionModalOpen}
-          onClose={() => {
-            setIsDecisionModalOpen(false);
-            setDecidingExpense(null);
-          }}
-          expense={decidingExpense}
-          onConfirm={handleConfirmDecision}
-        />
+        {isDecisionModalOpen && (
+          <DecisionModal
+            onClose={() => {
+              setIsDecisionModalOpen(false);
+              setDecidingExpense(null);
+            }}
+            expense={decidingExpense}
+            onConfirm={handleConfirmDecision}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

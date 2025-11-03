@@ -1,19 +1,39 @@
 /**
- * Remove todos os caracteres não numéricos
+ * Remove todos os caracteres não numéricos (exceto vírgula e ponto)
  */
 export function allowOnlyNumbers(value) {
-  return value.replace(/\D/g, '');
+  return value.replace(/[^\d,\.]/g, '');
+}
+
+/**
+ * Processa input permitindo vírgula/ponto para centavos
+ * Ex: "1234,56" → "123456" ou "1234.56" → "123456"
+ */
+function normalizeInput(value) {
+  if (!value) return '';
+
+  const str = String(value);
+
+  // Se tem vírgula ou ponto, trata como decimal
+  if (str.includes(',') || str.includes('.')) {
+    const parts = str.replace(',', '.').split('.');
+    const inteiros = parts[0].replace(/\D/g, '');
+    const centavos = parts[1] ? parts[1].replace(/\D/g, '').slice(0, 2).padEnd(2, '0') : '00';
+    return inteiros + centavos;
+  }
+
+  // Senão, trata como centavos
+  return str.replace(/\D/g, '');
 }
 
 /**
  * Formata valor em moeda brasileira (R$ 1.234,56)
- * Permite usuário digitar centavos naturalmente
+ * Aceita: "1234,56", "1234.56", "123456" (centavos)
  */
 export function formatMoney(value) {
-  // Se já está formatado, remove formatação
-  const cleanValue = typeof value === 'string' ? value.replace(/\D/g, '') : String(value);
+  const cleanValue = normalizeInput(value);
 
-  if (!cleanValue || cleanValue === '0') return '';
+  if (!cleanValue || cleanValue === '0' || cleanValue === '00') return '';
 
   // Converte centavos para reais
   const numberValue = parseFloat(cleanValue) / 100;
@@ -26,20 +46,16 @@ export function formatMoney(value) {
 
 /**
  * Converte string formatada ou número para valor decimal
- * Exemplos:
- * - "R$ 1.234,56" -> 1234.56
- * - "123456" -> 1234.56
- * - 1234.56 -> 1234.56
+ * Aceita: "R$ 1.234,56", "1234,56", "1234.56", "123456" (centavos)
  */
 export function parseToNumber(value) {
   if (typeof value === 'number') return value;
   if (!value) return 0;
 
-  // Remove tudo exceto números
-  const numbers = allowOnlyNumbers(String(value));
+  const cleanValue = normalizeInput(String(value));
 
   // Converte centavos para reais
-  return numbers ? parseFloat(numbers) / 100 : 0;
+  return cleanValue ? parseFloat(cleanValue) / 100 : 0;
 }
 
 // Alias para compatibilidade
@@ -48,10 +64,6 @@ export const toNumber = parseToNumber;
 /**
  * Formata input de moeda enquanto usuário digita
  * Retorna objeto com valor formatado e valor numérico
- *
- * Uso:
- * const { formatted, numeric } = formatMoneyInput(e.target.value);
- * setValue(formatted);
  */
 export function formatMoneyInput(value) {
   const formatted = formatMoney(value);
