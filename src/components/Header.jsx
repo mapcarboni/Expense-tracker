@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -30,13 +30,17 @@ const ROUTES = {
   },
 };
 
-export function Header({ isSaved = true, onSave, saveLoading = false }) {
+export function Header({
+  isSaved = true,
+  onSave,
+  saveLoading = false,
+  selectedYear,
+  onYearChange,
+}) {
   const { signOut } = useAuth();
   const pathname = usePathname();
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [years, setYears] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [yearsLoading, setYearsLoading] = useState(true);
 
   const currentRoute = ROUTES[pathname] || {
@@ -77,7 +81,9 @@ export function Header({ isSaved = true, onSave, saveLoading = false }) {
   };
 
   const handleYearChange = (year) => {
-    setSelectedYear(year);
+    if (onYearChange) {
+      onYearChange(year);
+    }
   };
 
   const handleSave = async () => {
