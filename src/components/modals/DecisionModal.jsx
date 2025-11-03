@@ -1,31 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Check, CreditCard, Calendar } from 'lucide-react';
 import { toNumber, formatMoney } from '@/utils/formatters';
-
-const DESTINATIONS = [
-  {
-    value: 'fixed_first',
-    label: 'Contas Fixas - 1ª Quinzena',
-    icon: Calendar,
-    description: '(dia 1-15)',
-  },
-  {
-    value: 'fixed_second',
-    label: 'Contas Fixas - 2ª Quinzena',
-    icon: Calendar,
-    description: '(dia 16-30)',
-  },
-  {
-    value: 'credit_card_1',
-    label: 'Cartão de Crédito Marc',
-    icon: CreditCard
-  },
-  {
-    value: 'credit_card_2',
-    label: 'Cartão de Crédito Neca',
-    icon: CreditCard
-  },
-];
+import { DESTINATIONS, DESTINATION_LABELS } from '@/constants/app';
 
 export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
   const [paymentChoice, setPaymentChoice] = useState('');
@@ -38,14 +14,15 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
     }
   }, [isOpen, expense]);
 
-  if (!isOpen || !expense) return null;
+  // ✅ Memoiza cálculos pesados
+  const calculations = useMemo(() => {
+    if (!expense) return null;
 
-  const calculations = (() => {
     const getCashTotal = () => {
       switch (expense.type) {
         case 'IPTU':
           return toNumber(expense.cashValue) + toNumber(expense.garbageTaxCash);
-        case 'Outros':
+        case 'OUTROS':
           return expense.installments === 1 ? toNumber(expense.value) : 0;
         default:
           return toNumber(expense.cashValue);
@@ -59,7 +36,7 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
             (toNumber(expense.installmentValue) + toNumber(expense.garbageTaxInstallment)) *
             toNumber(expense.installments)
           );
-        case 'Outros':
+        case 'OUTROS':
           return toNumber(expense.value) * toNumber(expense.installments);
         default:
           return toNumber(expense.installmentValue) * toNumber(expense.installments);
@@ -78,12 +55,18 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
       percent,
       isInstallmentMoreExpensive: installmentTotal > cashTotal,
     };
-  })();
+  }, [expense]);
 
-  const hasCashOption = expense.type === 'Outros' ? expense.installments === 1 : true;
+  // ✅ Memoiza lógica de validação
+  const hasCashOption = useMemo(() => {
+    if (!expense) return false;
+    return expense.type === 'OUTROS' ? expense.installments === 1 : true;
+  }, [expense]);
+
   const hasMultipleOptions = hasCashOption;
 
-  const handleConfirm = () => {
+  // ✅ Callback para confirmar
+  const handleConfirm = useCallback(() => {
     if (!destination || (hasMultipleOptions && !paymentChoice)) return;
 
     onConfirm({
@@ -95,12 +78,13 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
     setPaymentChoice('');
     setDestination('');
     onClose();
-  };
+  }, [destination, hasMultipleOptions, paymentChoice, expense, onConfirm, onClose]);
 
-  const getDifferenceInfo = () => {
-    if (!paymentChoice) {
+  // ✅ Memoiza informações de diferença
+  const differenceInfo = useMemo(() => {
+    if (!calculations || !paymentChoice) {
       return {
-        text: calculations.isInstallmentMoreExpensive
+        text: calculations?.isInstallmentMoreExpensive
           ? 'À vista é mais barato'
           : 'Parcelado é mais barato',
         color: 'text-blue-400',
@@ -115,7 +99,9 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
       text: isBetterChoice ? 'Economia' : 'Custo adicional',
       color: isBetterChoice ? 'text-green-400' : 'text-red-400',
     };
-  };
+  }, [calculations, paymentChoice]);
+
+  if (!isOpen || !expense) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -133,7 +119,8 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+            aria-label="Fechar modal">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -224,9 +211,9 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
                 }`}>
                 <div className="text-center">
                   <div className="text-sm font-medium text-gray-300 mb-1">
-                    {getDifferenceInfo().text}
+                    {differenceInfo.text}
                   </div>
-                  <div className={`text-3xl font-bold ${getDifferenceInfo().color}`}>
+                  <div className={`text-3xl font-bold ${differenceInfo.color}`}>
                     {formatMoney(calculations.diff)}
                   </div>
                   <div className="text-sm text-gray-400 mt-1">
@@ -257,7 +244,7 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
             </h3>
             <div className="space-y-2">
               {DESTINATIONS.map((dest) => {
-                const Icon = dest.icon;
+                const IconComponent = dest.icon === 'Calendar' ? Calendar : CreditCard;
                 return (
                   <label
                     key={dest.value}
@@ -272,7 +259,7 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
                       checked={destination === dest.value}
                       onChange={(e) => setDestination(e.target.value)}
                     />
-                    <Icon className="h-5 w-5 text-gray-400" />
+                    <IconComponent className="h-5 w-5 text-gray-400" />
                     <div className="flex-1">
                       <span className="text-white font-medium">{dest.label}</span>
                       {dest.description && (
