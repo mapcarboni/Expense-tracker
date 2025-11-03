@@ -1,7 +1,13 @@
--- Habilitar extensões necessárias
+-- 🧹 Limpeza prévia: remover tabela e tipos, se existirem
+DROP TABLE IF EXISTS decisions CASCADE;
+DROP TYPE IF EXISTS expense_type CASCADE;
+DROP TYPE IF EXISTS payment_type CASCADE;
+DROP TYPE IF EXISTS destination_type CASCADE;
+
+-- 🧩 Extensão necessária
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Criar ENUMs
+-- 🧱 Criação dos tipos ENUM
 CREATE TYPE expense_type AS ENUM ('IPTU', 'IPVA', 'SEGURO', 'OUTROS');
 CREATE TYPE payment_type AS ENUM ('cash', 'installment');
 CREATE TYPE destination_type AS ENUM (
@@ -11,7 +17,7 @@ CREATE TYPE destination_type AS ENUM (
   'credit_card_2'
 );
 
--- Criar tabela principal
+-- 🗂️ Tabela principal
 CREATE TABLE decisions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -30,7 +36,6 @@ CREATE TABLE decisions (
   installments INTEGER,
   installment_value DECIMAL(10,2),
   first_installment_date DATE,
-  total_installment_value DECIMAL(10,2),
 
   -- IPTU específico
   garbage_tax_cash DECIMAL(10,2),
@@ -46,14 +51,14 @@ CREATE TABLE decisions (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Índices
+-- 🔍 Índices
 CREATE INDEX idx_decisions_user_year ON decisions(user_id, year);
 CREATE INDEX idx_decisions_type ON decisions(type);
 
--- Ativar RLS
+-- 🔒 Segurança em nível de linha (RLS)
 ALTER TABLE decisions ENABLE ROW LEVEL SECURITY;
 
--- Políticas de acesso
+-- 🧑‍💻 Políticas de acesso
 CREATE POLICY "Users can view own decisions"
   ON decisions FOR SELECT
   USING (auth.uid() = user_id);

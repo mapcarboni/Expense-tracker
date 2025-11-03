@@ -100,7 +100,7 @@ export function Header({
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-gray-700 bg-gray-800 shadow-2xl z-40">
+                  <div className="absolute left-0 top-full mt-3 w-72 rounded-xl border border-gray-700 bg-gray-800 shadow-2xl z-40">
                     <nav className="p-3 space-y-1">
                       {Object.entries(ROUTES).map(([path, route]) => {
                         const RouteIcon = route.icon;
@@ -111,7 +111,7 @@ export function Header({
                             key={path}
                             href={path}
                             onClick={() => setMenuOpen(false)}
-                            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-base transition-colors ${
                               isActive
                                 ? 'bg-blue-600/20 text-blue-400'
                                 : 'text-gray-300 hover:bg-gray-700 hover:text-white'
@@ -119,7 +119,7 @@ export function Header({
                             <RouteIcon className="h-4 w-4" />
                             <div className="flex-1">
                               <div className="font-medium">{route.label}</div>
-                              <div className="text-xs text-gray-500">{route.description}</div>
+                              <div className="text-sm text-gray-500">{route.description}</div>
                             </div>
                           </Link>
                         );
