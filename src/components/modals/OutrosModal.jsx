@@ -10,48 +10,57 @@ const INITIAL_FORM = {
 };
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+  'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all';
+const INPUT_ERROR_CLASS =
+  'w-full rounded-md border-2 border-red-500 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all';
 const LABEL_CLASS = 'block text-sm font-medium text-gray-300 mb-1';
 
 export default function OutrosModal({ isOpen, onClose, onSave, year, editData = null }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [touched, setTouched] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (editData) {
       setForm({
         description: editData.description,
-        value: formatMoney(editData.value),
-        installments: editData.installments,
-        dueDate: editData.dueDate,
+        value: formatMoney(editData.cash_value || editData.installment_value),
+        installments: editData.installments || 1,
+        dueDate: editData.cash_due_date || editData.first_installment_date,
       });
+    } else {
+      setForm(INITIAL_FORM);
+      setTouched({});
     }
-  }, [editData]);
+  }, [editData, isOpen]);
 
   if (!isOpen) return null;
 
-  const updateField = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
+  const updateField = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
 
   const handleValueInput = (value, shouldFormat = false) => {
     const cleanValue = shouldFormat ? formatMoney(value) : allowOnlyNumbers(value);
     updateField('value', cleanValue);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({
-      id: editData?.id || Date.now(),
-      type: 'Outros',
-      year,
-      description: form.description,
-      value: parseToNumber(form.value),
-      installments: parseInt(form.installments),
-      dueDate: form.dueDate,
-      paymentChoice: editData?.paymentChoice || null,
-      destination: editData?.destination || null,
-    });
+  const validateField = (name, value) => {
+    if (!touched[name]) return true;
 
-    setForm(INITIAL_FORM);
-    onClose();
+    switch (name) {
+      case 'description':
+        return value.trim().length > 0;
+      case 'value':
+        return value.startsWith('R$');
+      case 'dueDate':
+        return value.length > 0;
+      case 'installments':
+        return parseInt(value) >= 1;
+      default:
+        return true;
+    }
   };
 
   const isFormValid = [
@@ -60,6 +69,41 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
     form.installments >= 1,
     form.dueDate,
   ].every(Boolean);
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    if (!isFormValid || saving) return;
+
+    setSaving(true);
+
+    const isInstallment = parseInt(form.installments) > 1;
+
+    await onSave({
+      id: editData?.id,
+      type: 'OUTROS',
+      year,
+      description: form.description,
+      cash_value: isInstallment ? null : parseToNumber(form.value),
+      cash_due_date: isInstallment ? null : form.dueDate,
+      installments: parseInt(form.installments),
+      installment_value: isInstallment ? parseToNumber(form.value) : null,
+      first_installment_date: isInstallment ? form.dueDate : null,
+      payment_choice: editData?.payment_choice || null,
+      destination: editData?.destination || null,
+    });
+
+    setSaving(false);
+    setForm(INITIAL_FORM);
+    setTouched({});
+    onClose();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      if (isFormValid) handleSubmit();
+    }
+  };
 
   const isParcelado = parseInt(form.installments) > 1;
   const total = parseToNumber(form.value) * parseInt(form.installments || 1);
@@ -82,7 +126,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-6 space-y-4">
           {/* Description */}
           <div>
             <label htmlFor="outros-description" className={LABEL_CLASS}>
@@ -92,11 +136,17 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               id="outros-description"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
               placeholder="Ex: Contas pagas por pix ..."
-              className={INPUT_CLASS}
+              className={
+                validateField('description', form.description) ? INPUT_CLASS : INPUT_ERROR_CLASS
+              }
               autoFocus
               required
             />
+            {!validateField('description', form.description) && (
+              <p className="text-xs text-red-400 mt-1">Campo obrigatório</p>
+            )}
           </div>
 
           {/* Value */}
@@ -108,9 +158,12 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               id="outros-value"
               value={form.value}
               onChange={(e) => handleValueInput(e.target.value)}
-              onBlur={(e) => handleValueInput(e.target.value, true)}
+              onBlur={(e) => {
+                handleValueInput(e.target.value, true);
+                setTouched((prev) => ({ ...prev, value: true }));
+              }}
               placeholder="Ex: 350,00"
-              className={INPUT_CLASS}
+              className={validateField('value', form.value) ? INPUT_CLASS : INPUT_ERROR_CLASS}
               required
             />
           </div>
@@ -125,6 +178,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               type="number"
               value={form.installments}
               onChange={(e) => updateField('installments', e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, installments: true }))}
               min="1"
               className={INPUT_CLASS}
               required
@@ -157,6 +211,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               type="date"
               value={form.dueDate}
               onChange={(e) => updateField('dueDate', e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, dueDate: true }))}
               className={INPUT_CLASS}
               required
             />
@@ -172,10 +227,10 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
             </button>
             <button
               type="submit"
-              disabled={!isFormValid}
+              disabled={!isFormValid || saving}
               className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              <Save className="h-4 w-4" />
-              {editData ? 'Atualizar' : 'Salvar'}
+              <Save className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
+              {saving ? 'Salvando...' : editData ? 'Atualizar' : 'Salvar'}
             </button>
           </div>
         </form>

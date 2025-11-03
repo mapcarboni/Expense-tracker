@@ -16,59 +16,69 @@ const INITIAL_FORM = {
 };
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+  'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all';
+const INPUT_ERROR_CLASS =
+  'w-full rounded-md border-2 border-red-500 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all';
 const LABEL_CLASS = 'block text-sm font-medium text-gray-300 mb-1';
 
 export default function IPVAModal({ isOpen, onClose, onSave, year, editData = null }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [touched, setTouched] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (editData) {
       setForm({
         description: editData.description,
-        cashValue: formatMoney(editData.cashValue),
-        cashDueDate: editData.cashDueDate,
-        installments: editData.installments,
-        installmentValue: formatMoney(editData.installmentValue),
-        firstInstallmentDate: editData.firstInstallmentDate,
-        dpvatValue: formatMoney(editData.dpvatValue),
-        dpvatDueDate: editData.dpvatDueDate,
-        licensingValue: formatMoney(editData.licensingValue),
-        licensingDueDate: editData.licensingDueDate,
+        cashValue: formatMoney(editData.cash_value),
+        cashDueDate: editData.cash_due_date,
+        installments: editData.installments?.toString() || '2',
+        installmentValue: formatMoney(editData.installment_value),
+        firstInstallmentDate: editData.first_installment_date,
+        dpvatValue: formatMoney(editData.dpvat_value),
+        dpvatDueDate: editData.dpvat_due_date,
+        licensingValue: formatMoney(editData.licensing_value),
+        licensingDueDate: editData.licensing_due_date,
       });
+    } else {
+      setForm(INITIAL_FORM);
+      setTouched({});
     }
-  }, [editData]);
+  }, [editData, isOpen]);
 
   if (!isOpen) return null;
 
-  const updateField = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
+  const updateField = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
 
   const handleCurrencyInput = (name, value, shouldFormat = false) => {
     const cleanValue = shouldFormat ? formatMoney(value) : allowOnlyNumbers(value);
     updateField(name, cleanValue);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({
-      id: editData?.id || Date.now(),
-      type: 'IPVA',
-      year,
-      description: form.description,
-      cashValue: parseToNumber(form.cashValue),
-      cashDueDate: form.cashDueDate,
-      installments: form.installments,
-      installmentValue: parseToNumber(form.installmentValue),
-      firstInstallmentDate: form.firstInstallmentDate,
-      dpvatValue: parseToNumber(form.dpvatValue),
-      dpvatDueDate: form.dpvatDueDate,
-      licensingValue: parseToNumber(form.licensingValue),
-      licensingDueDate: form.licensingDueDate,
-      paymentChoice: editData?.paymentChoice || null,
-    });
+  const validateField = (name, value) => {
+    if (!touched[name]) return true;
 
-    setForm(INITIAL_FORM);
-    onClose();
+    switch (name) {
+      case 'description':
+        return value.trim().length > 0;
+      case 'cashValue':
+      case 'installmentValue':
+      case 'dpvatValue':
+      case 'licensingValue':
+        return value.startsWith('R$');
+      case 'cashDueDate':
+      case 'firstInstallmentDate':
+      case 'dpvatDueDate':
+      case 'licensingDueDate':
+        return value.length > 0;
+      case 'installments':
+        return parseInt(value) >= 1;
+      default:
+        return true;
+    }
   };
 
   const isFormValid = [
@@ -83,6 +93,43 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
     form.licensingValue.startsWith('R$'),
     form.licensingDueDate,
   ].every(Boolean);
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    if (!isFormValid || saving) return;
+
+    setSaving(true);
+
+    await onSave({
+      id: editData?.id,
+      type: 'IPVA',
+      year,
+      description: form.description,
+      cash_value: parseToNumber(form.cashValue),
+      cash_due_date: form.cashDueDate,
+      installments: parseInt(form.installments),
+      installment_value: parseToNumber(form.installmentValue),
+      first_installment_date: form.firstInstallmentDate,
+      dpvat_value: parseToNumber(form.dpvatValue),
+      dpvat_due_date: form.dpvatDueDate,
+      licensing_value: parseToNumber(form.licensingValue),
+      licensing_due_date: form.licensingDueDate,
+      payment_choice: editData?.payment_choice || null,
+      destination: editData?.destination || null,
+    });
+
+    setSaving(false);
+    setForm(INITIAL_FORM);
+    setTouched({});
+    onClose();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      if (isFormValid) handleSubmit();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -102,7 +149,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
         </div>
 
         {/* Form */}
-        <div className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-6 space-y-4">
           {/* Description */}
           <div>
             <label htmlFor="description" className={LABEL_CLASS}>
@@ -112,11 +159,17 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
               id="description"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
               placeholder="Ex: Veículo"
-              className={INPUT_CLASS}
+              className={
+                validateField('description', form.description) ? INPUT_CLASS : INPUT_ERROR_CLASS
+              }
               autoFocus
               required
             />
+            {!validateField('description', form.description) && (
+              <p className="text-xs text-red-400 mt-1">Campo obrigatório</p>
+            )}
           </div>
 
           {/* Cash Payment */}
@@ -131,9 +184,14 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   id="cashValue"
                   value={form.cashValue}
                   onChange={(e) => handleCurrencyInput('cashValue', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('cashValue', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('cashValue', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, cashValue: true }));
+                  }}
                   placeholder="Ex: 1234,56"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('cashValue', form.cashValue) ? INPUT_CLASS : INPUT_ERROR_CLASS
+                  }
                   required
                 />
               </div>
@@ -146,6 +204,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   type="date"
                   value={form.cashDueDate}
                   onChange={(e) => updateField('cashDueDate', e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, cashDueDate: true }))}
                   className={INPUT_CLASS}
                   required
                 />
@@ -166,6 +225,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   type="number"
                   value={form.installments}
                   onChange={(e) => updateField('installments', e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, installments: true }))}
                   min="1"
                   placeholder="Ex: 3"
                   className={INPUT_CLASS}
@@ -180,9 +240,16 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   id="installmentValue"
                   value={form.installmentValue}
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('installmentValue', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('installmentValue', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, installmentValue: true }));
+                  }}
                   placeholder="Ex: 450,00"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('installmentValue', form.installmentValue)
+                      ? INPUT_CLASS
+                      : INPUT_ERROR_CLASS
+                  }
                   required
                 />
               </div>
@@ -196,6 +263,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                 type="date"
                 value={form.firstInstallmentDate}
                 onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, firstInstallmentDate: true }))}
                 className={INPUT_CLASS}
                 required
               />
@@ -214,9 +282,14 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   id="dpvatValue"
                   value={form.dpvatValue}
                   onChange={(e) => handleCurrencyInput('dpvatValue', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('dpvatValue', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('dpvatValue', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, dpvatValue: true }));
+                  }}
                   placeholder="Ex: 50,00"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('dpvatValue', form.dpvatValue) ? INPUT_CLASS : INPUT_ERROR_CLASS
+                  }
                   required
                 />
               </div>
@@ -229,6 +302,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   type="date"
                   value={form.dpvatDueDate}
                   onChange={(e) => updateField('dpvatDueDate', e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, dpvatDueDate: true }))}
                   className={INPUT_CLASS}
                   required
                 />
@@ -248,9 +322,16 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   id="licensingValue"
                   value={form.licensingValue}
                   onChange={(e) => handleCurrencyInput('licensingValue', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('licensingValue', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('licensingValue', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, licensingValue: true }));
+                  }}
                   placeholder="Ex: 120,00"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('licensingValue', form.licensingValue)
+                      ? INPUT_CLASS
+                      : INPUT_ERROR_CLASS
+                  }
                   required
                 />
               </div>
@@ -263,6 +344,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   type="date"
                   value={form.licensingDueDate}
                   onChange={(e) => updateField('licensingDueDate', e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, licensingDueDate: true }))}
                   className={INPUT_CLASS}
                   required
                 />
@@ -279,15 +361,14 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
               Cancelar
             </button>
             <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!isFormValid}
+              type="submit"
+              disabled={!isFormValid || saving}
               className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              <Save className="h-4 w-4" />
-              {editData ? 'Atualizar' : 'Salvar'}
+              <Save className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
+              {saving ? 'Salvando...' : editData ? 'Atualizar' : 'Salvar'}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
