@@ -3,21 +3,23 @@ import { X, Save } from 'lucide-react';
 import { allowOnlyNumbers, formatMoney, parseToNumber } from '@/utils/formatters';
 
 const INITIAL_FORM = {
-  description: 'Apartamento',
+  description: '',
   cashValue: '',
-  garbageTaxCash: '',
   cashDueDate: '',
   installments: '2',
   installmentValue: '',
-  garbageTaxInstallment: '',
   firstInstallmentDate: '',
+  dpvatValue: '',
+  dpvatDueDate: '',
+  licensingValue: '',
+  licensingDueDate: '',
 };
 
 const INPUT_CLASS =
   'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
 const LABEL_CLASS = 'block text-sm font-medium text-gray-300 mb-1';
 
-export default function IPTUModal({ isOpen, onClose, onSave, year, editData = null }) {
+export default function IPVAModal({ isOpen, onClose, onSave, year, editData = null }) {
   const [form, setForm] = useState(INITIAL_FORM);
 
   useEffect(() => {
@@ -25,12 +27,14 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
       setForm({
         description: editData.description,
         cashValue: formatMoney(editData.cashValue),
-        garbageTaxCash: formatMoney(editData.garbageTaxCash),
         cashDueDate: editData.cashDueDate,
         installments: editData.installments,
         installmentValue: formatMoney(editData.installmentValue),
-        garbageTaxInstallment: formatMoney(editData.garbageTaxInstallment),
         firstInstallmentDate: editData.firstInstallmentDate,
+        dpvatValue: formatMoney(editData.dpvatValue),
+        dpvatDueDate: editData.dpvatDueDate,
+        licensingValue: formatMoney(editData.licensingValue),
+        licensingDueDate: editData.licensingDueDate,
       });
     }
   }, [editData]);
@@ -48,16 +52,18 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
     e.preventDefault();
     onSave({
       id: editData?.id || Date.now(),
-      type: 'IPTU',
+      type: 'IPVA',
       year,
       description: form.description,
       cashValue: parseToNumber(form.cashValue),
-      garbageTaxCash: parseToNumber(form.garbageTaxCash),
       cashDueDate: form.cashDueDate,
       installments: form.installments,
       installmentValue: parseToNumber(form.installmentValue),
-      garbageTaxInstallment: parseToNumber(form.garbageTaxInstallment),
       firstInstallmentDate: form.firstInstallmentDate,
+      dpvatValue: parseToNumber(form.dpvatValue),
+      dpvatDueDate: form.dpvatDueDate,
+      licensingValue: parseToNumber(form.licensingValue),
+      licensingDueDate: form.licensingDueDate,
       paymentChoice: editData?.paymentChoice || null,
     });
 
@@ -65,16 +71,18 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
     onClose();
   };
 
-  const isFormValid = Object.entries({
-    description: form.description.trim(),
-    cashValue: form.cashValue.startsWith('R$'),
-    garbageTaxCash: form.garbageTaxCash.startsWith('R$'),
-    cashDueDate: form.cashDueDate,
-    installments: form.installments,
-    installmentValue: form.installmentValue.startsWith('R$'),
-    garbageTaxInstallment: form.garbageTaxInstallment.startsWith('R$'),
-    firstInstallmentDate: form.firstInstallmentDate,
-  }).every(([, value]) => Boolean(value));
+  const isFormValid = [
+    form.description.trim(),
+    form.cashValue.startsWith('R$'),
+    form.cashDueDate,
+    form.installments,
+    form.installmentValue.startsWith('R$'),
+    form.firstInstallmentDate,
+    form.dpvatValue.startsWith('R$'),
+    form.dpvatDueDate,
+    form.licensingValue.startsWith('R$'),
+    form.licensingDueDate,
+  ].every(Boolean);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -84,7 +92,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
         {/* Header */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-700 bg-gray-800 px-6 py-3">
           <h2 className="text-xl font-semibold text-white">
-            {editData ? 'Editar' : 'Nova'} Despesa IPTU {year}
+            {editData ? 'Editar' : 'Nova'} Despesa IPVA {year}
           </h2>
           <button
             onClick={onClose}
@@ -104,7 +112,9 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               id="description"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
+              placeholder="Ex: Veículo"
               className={INPUT_CLASS}
+              autoFocus
               required
             />
           </div>
@@ -115,7 +125,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="cashValue" className={LABEL_CLASS}>
-                  Valor IPTU *
+                  Valor IPVA *
                 </label>
                 <input
                   id="cashValue"
@@ -124,37 +134,22 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   onBlur={(e) => handleCurrencyInput('cashValue', e.target.value, true)}
                   placeholder="Ex: 1234,56"
                   className={INPUT_CLASS}
-                  autoFocus
                   required
                 />
               </div>
               <div>
-                <label htmlFor="garbageTaxCash" className={LABEL_CLASS}>
-                  Taxa de Lixo *
+                <label htmlFor="cashDueDate" className={LABEL_CLASS}>
+                  Data de Vencimento *
                 </label>
                 <input
-                  id="garbageTaxCash"
-                  value={form.garbageTaxCash}
-                  onChange={(e) => handleCurrencyInput('garbageTaxCash', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('garbageTaxCash', e.target.value, true)}
-                  placeholder="Ex: 150,00"
+                  id="cashDueDate"
+                  type="date"
+                  value={form.cashDueDate}
+                  onChange={(e) => updateField('cashDueDate', e.target.value)}
                   className={INPUT_CLASS}
                   required
                 />
               </div>
-            </div>
-            <div className="mt-3">
-              <label htmlFor="cashDueDate" className={LABEL_CLASS}>
-                Data de Vencimento *
-              </label>
-              <input
-                id="cashDueDate"
-                type="date"
-                value={form.cashDueDate}
-                onChange={(e) => updateField('cashDueDate', e.target.value)}
-                className={INPUT_CLASS}
-                required
-              />
             </div>
           </div>
 
@@ -172,7 +167,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   value={form.installments}
                   onChange={(e) => updateField('installments', e.target.value)}
                   min="1"
-                  placeholder="Ex: 12"
+                  placeholder="Ex: 3"
                   className={INPUT_CLASS}
                   required
                 />
@@ -186,34 +181,88 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   value={form.installmentValue}
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
                   onBlur={(e) => handleCurrencyInput('installmentValue', e.target.value, true)}
-                  placeholder="Ex: 120,50"
+                  placeholder="Ex: 450,00"
+                  className={INPUT_CLASS}
+                  required
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label htmlFor="firstInstallmentDate" className={LABEL_CLASS}>
+                Data da 1ª Parcela *
+              </label>
+              <input
+                id="firstInstallmentDate"
+                type="date"
+                value={form.firstInstallmentDate}
+                onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
+                className={INPUT_CLASS}
+                required
+              />
+            </div>
+          </div>
+
+          {/* DPVAT Section */}
+          <div className="border-t border-gray-700 pt-3">
+            <h3 className="text-base font-medium text-white mb-3">DPVAT</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="dpvatValue" className={LABEL_CLASS}>
+                  Valor DPVAT *
+                </label>
+                <input
+                  id="dpvatValue"
+                  value={form.dpvatValue}
+                  onChange={(e) => handleCurrencyInput('dpvatValue', e.target.value)}
+                  onBlur={(e) => handleCurrencyInput('dpvatValue', e.target.value, true)}
+                  placeholder="Ex: 50,00"
                   className={INPUT_CLASS}
                   required
                 />
               </div>
               <div>
-                <label htmlFor="garbageTaxInstallment" className={LABEL_CLASS}>
-                  Taxa Lixo *
+                <label htmlFor="dpvatDueDate" className={LABEL_CLASS}>
+                  Data de Vencimento *
                 </label>
                 <input
-                  id="garbageTaxInstallment"
-                  value={form.garbageTaxInstallment}
-                  onChange={(e) => handleCurrencyInput('garbageTaxInstallment', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('garbageTaxInstallment', e.target.value, true)}
-                  placeholder="Ex: 15,00"
-                  className={INPUT_CLASS}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="firstInstallmentDate" className={LABEL_CLASS}>
-                  1ª Parcela *
-                </label>
-                <input
-                  id="firstInstallmentDate"
+                  id="dpvatDueDate"
                   type="date"
-                  value={form.firstInstallmentDate}
-                  onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
+                  value={form.dpvatDueDate}
+                  onChange={(e) => updateField('dpvatDueDate', e.target.value)}
+                  className={INPUT_CLASS}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Licensing Section */}
+          <div className="border-t border-gray-700 pt-3">
+            <h3 className="text-base font-medium text-white mb-3">Licenciamento</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="licensingValue" className={LABEL_CLASS}>
+                  Valor Licenciamento *
+                </label>
+                <input
+                  id="licensingValue"
+                  value={form.licensingValue}
+                  onChange={(e) => handleCurrencyInput('licensingValue', e.target.value)}
+                  onBlur={(e) => handleCurrencyInput('licensingValue', e.target.value, true)}
+                  placeholder="Ex: 120,00"
+                  className={INPUT_CLASS}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="licensingDueDate" className={LABEL_CLASS}>
+                  Data de Vencimento *
+                </label>
+                <input
+                  id="licensingDueDate"
+                  type="date"
+                  value={form.licensingDueDate}
+                  onChange={(e) => updateField('licensingDueDate', e.target.value)}
                   className={INPUT_CLASS}
                   required
                 />
