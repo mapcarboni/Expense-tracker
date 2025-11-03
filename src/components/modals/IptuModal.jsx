@@ -14,11 +14,15 @@ const INITIAL_FORM = {
 };
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+  'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all';
+const INPUT_ERROR_CLASS =
+  'w-full rounded-md border-2 border-red-500 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all';
 const LABEL_CLASS = 'block text-sm font-medium text-gray-300 mb-1';
 
 export default function IPTUModal({ isOpen, onClose, onSave, year, editData = null }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [touched, setTouched] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (editData) {
@@ -32,49 +36,92 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
         garbageTaxInstallment: formatMoney(editData.garbageTaxInstallment),
         firstInstallmentDate: editData.firstInstallmentDate,
       });
+    } else {
+      setForm(INITIAL_FORM);
+      setTouched({});
     }
-  }, [editData]);
+  }, [editData, isOpen]);
 
   if (!isOpen) return null;
 
-  const updateField = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
+  const updateField = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
 
   const handleCurrencyInput = (name, value, shouldFormat = false) => {
     const cleanValue = shouldFormat ? formatMoney(value) : allowOnlyNumbers(value);
     updateField(name, cleanValue);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({
-      id: editData?.id || Date.now(),
+  const validateField = (name, value) => {
+    if (!touched[name]) return true;
+
+    switch (name) {
+      case 'description':
+        return value.trim().length > 0;
+      case 'cashValue':
+      case 'garbageTaxCash':
+      case 'installmentValue':
+      case 'garbageTaxInstallment':
+        return value.startsWith('R$');
+      case 'cashDueDate':
+      case 'firstInstallmentDate':
+        return value.length > 0;
+      case 'installments':
+        return parseInt(value) >= 1;
+      default:
+        return true;
+    }
+  };
+
+  const isFormValid = [
+    form.description.trim(),
+    form.cashValue.startsWith('R$'),
+    form.garbageTaxCash.startsWith('R$'),
+    form.cashDueDate,
+    form.installments,
+    form.installmentValue.startsWith('R$'),
+    form.garbageTaxInstallment.startsWith('R$'),
+    form.firstInstallmentDate,
+  ].every(Boolean);
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    if (!isFormValid || saving) return;
+
+    setSaving(true);
+
+    await onSave({
+      id: editData?.id,
       type: 'IPTU',
       year,
       description: form.description,
-      cashValue: parseToNumber(form.cashValue),
-      garbageTaxCash: parseToNumber(form.garbageTaxCash),
-      cashDueDate: form.cashDueDate,
-      installments: form.installments,
-      installmentValue: parseToNumber(form.installmentValue),
-      garbageTaxInstallment: parseToNumber(form.garbageTaxInstallment),
-      firstInstallmentDate: form.firstInstallmentDate,
-      paymentChoice: editData?.paymentChoice || null,
+      cash_value: parseToNumber(form.cashValue),
+      garbage_tax_cash: parseToNumber(form.garbageTaxCash),
+      cash_due_date: form.cashDueDate,
+      installments: parseInt(form.installments),
+      installment_value: parseToNumber(form.installmentValue),
+      garbage_tax_installment: parseToNumber(form.garbageTaxInstallment),
+      first_installment_date: form.firstInstallmentDate,
+      payment_choice: editData?.payment_choice || null,
+      destination: editData?.destination || null,
     });
 
+    setSaving(false);
     setForm(INITIAL_FORM);
+    setTouched({});
     onClose();
   };
 
-  const isFormValid = Object.entries({
-    description: form.description.trim(),
-    cashValue: form.cashValue.startsWith('R$'),
-    garbageTaxCash: form.garbageTaxCash.startsWith('R$'),
-    cashDueDate: form.cashDueDate,
-    installments: form.installments,
-    installmentValue: form.installmentValue.startsWith('R$'),
-    garbageTaxInstallment: form.garbageTaxInstallment.startsWith('R$'),
-    firstInstallmentDate: form.firstInstallmentDate,
-  }).every(([, value]) => Boolean(value));
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      if (isFormValid) {
+        handleSubmit();
+      }
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -94,7 +141,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
         </div>
 
         {/* Form */}
-        <div className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-6 space-y-4">
           {/* Description */}
           <div>
             <label htmlFor="description" className={LABEL_CLASS}>
@@ -104,9 +151,16 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               id="description"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
-              className={INPUT_CLASS}
+              onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
+              className={
+                validateField('description', form.description) ? INPUT_CLASS : INPUT_ERROR_CLASS
+              }
+              autoFocus
               required
             />
+            {!validateField('description', form.description) && (
+              <p className="text-xs text-red-400 mt-1">Campo obrigatório</p>
+            )}
           </div>
 
           {/* Cash Payment */}
@@ -121,12 +175,19 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   id="cashValue"
                   value={form.cashValue}
                   onChange={(e) => handleCurrencyInput('cashValue', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('cashValue', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('cashValue', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, cashValue: true }));
+                  }}
                   placeholder="Ex: 1234,56"
-                  className={INPUT_CLASS}
-                  autoFocus
+                  className={
+                    validateField('cashValue', form.cashValue) ? INPUT_CLASS : INPUT_ERROR_CLASS
+                  }
                   required
                 />
+                {!validateField('cashValue', form.cashValue) && (
+                  <p className="text-xs text-red-400 mt-1">Insira um valor válido</p>
+                )}
               </div>
               <div>
                 <label htmlFor="garbageTaxCash" className={LABEL_CLASS}>
@@ -136,11 +197,21 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   id="garbageTaxCash"
                   value={form.garbageTaxCash}
                   onChange={(e) => handleCurrencyInput('garbageTaxCash', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('garbageTaxCash', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('garbageTaxCash', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, garbageTaxCash: true }));
+                  }}
                   placeholder="Ex: 150,00"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('garbageTaxCash', form.garbageTaxCash)
+                      ? INPUT_CLASS
+                      : INPUT_ERROR_CLASS
+                  }
                   required
                 />
+                {!validateField('garbageTaxCash', form.garbageTaxCash) && (
+                  <p className="text-xs text-red-400 mt-1">Insira um valor válido</p>
+                )}
               </div>
             </div>
             <div className="mt-3">
@@ -152,7 +223,10 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                 type="date"
                 value={form.cashDueDate}
                 onChange={(e) => updateField('cashDueDate', e.target.value)}
-                className={INPUT_CLASS}
+                onBlur={() => setTouched((prev) => ({ ...prev, cashDueDate: true }))}
+                className={
+                  validateField('cashDueDate', form.cashDueDate) ? INPUT_CLASS : INPUT_ERROR_CLASS
+                }
                 required
               />
             </div>
@@ -171,6 +245,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   type="number"
                   value={form.installments}
                   onChange={(e) => updateField('installments', e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, installments: true }))}
                   min="1"
                   placeholder="Ex: 12"
                   className={INPUT_CLASS}
@@ -185,23 +260,37 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   id="installmentValue"
                   value={form.installmentValue}
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('installmentValue', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('installmentValue', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, installmentValue: true }));
+                  }}
                   placeholder="Ex: 120,50"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('installmentValue', form.installmentValue)
+                      ? INPUT_CLASS
+                      : INPUT_ERROR_CLASS
+                  }
                   required
                 />
               </div>
               <div>
                 <label htmlFor="garbageTaxInstallment" className={LABEL_CLASS}>
-                  Taxa Lixo *
+                  Taxa Lixo (Parcela) *
                 </label>
                 <input
                   id="garbageTaxInstallment"
                   value={form.garbageTaxInstallment}
                   onChange={(e) => handleCurrencyInput('garbageTaxInstallment', e.target.value)}
-                  onBlur={(e) => handleCurrencyInput('garbageTaxInstallment', e.target.value, true)}
+                  onBlur={(e) => {
+                    handleCurrencyInput('garbageTaxInstallment', e.target.value, true);
+                    setTouched((prev) => ({ ...prev, garbageTaxInstallment: true }));
+                  }}
                   placeholder="Ex: 15,00"
-                  className={INPUT_CLASS}
+                  className={
+                    validateField('garbageTaxInstallment', form.garbageTaxInstallment)
+                      ? INPUT_CLASS
+                      : INPUT_ERROR_CLASS
+                  }
                   required
                 />
               </div>
@@ -214,6 +303,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                   type="date"
                   value={form.firstInstallmentDate}
                   onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, firstInstallmentDate: true }))}
                   className={INPUT_CLASS}
                   required
                 />
@@ -230,15 +320,14 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               Cancelar
             </button>
             <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!isFormValid}
+              type="submit"
+              disabled={!isFormValid || saving}
               className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              <Save className="h-4 w-4" />
-              {editData ? 'Atualizar' : 'Salvar'}
+              <Save className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
+              {saving ? 'Salvando...' : editData ? 'Atualizar' : 'Salvar'}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
