@@ -179,6 +179,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
               id="ipva-desc"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
+              placeholder="Carro ou moto"
               className={INPUT_CLASS}
               disabled={saving}
               autoFocus
@@ -199,7 +200,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   value={form.cashValue.startsWith('R$') ? form.cashValue : form.cashValue}
                   onChange={(e) => handleCurrencyInput('cashValue', e.target.value)}
                   onBlur={() => handleCurrencyBlur('cashValue')}
-                  placeholder="0 desabilita data"
+                  placeholder="1234,56"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -251,7 +252,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   }
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
                   onBlur={() => handleCurrencyBlur('installmentValue')}
-                  placeholder="0 desabilita data"
+                  placeholder="123,45"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -285,7 +286,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   value={form.dpvatValue.startsWith('R$') ? form.dpvatValue : form.dpvatValue}
                   onChange={(e) => handleCurrencyInput('dpvatValue', e.target.value)}
                   onBlur={() => handleCurrencyBlur('dpvatValue')}
-                  placeholder="0 desabilita data"
+                  placeholder="12,34"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -321,7 +322,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   }
                   onChange={(e) => handleCurrencyInput('licensingValue', e.target.value)}
                   onBlur={() => handleCurrencyBlur('licensingValue')}
-                  placeholder="0 desabilita data"
+                  placeholder="12,34"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />

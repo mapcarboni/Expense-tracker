@@ -173,7 +173,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
-              placeholder="Ex: Contas pagas por pix"
+              placeholder="Ex: Contas a pagar"
               className={
                 validateField('description', form.description) ? INPUT_CLASS : INPUT_ERROR_CLASS
               }
@@ -196,7 +196,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
                   handleCurrencyBlur('value');
                   setTouched((prev) => ({ ...prev, value: true }));
                 }}
-                placeholder="0 desabilita data"
+                placeholder="123,45"
                 className={INPUT_CLASS}
                 disabled={saving}
               />

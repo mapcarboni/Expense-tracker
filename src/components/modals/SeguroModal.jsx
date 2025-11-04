@@ -210,7 +210,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                     handleCurrencyBlur('cashValue');
                     setTouched((prev) => ({ ...prev, cashValue: true }));
                   }}
-                  placeholder="0 desabilita data"
+                  placeholder="1234,56"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -265,7 +265,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                     handleCurrencyBlur('installmentValue');
                     setTouched((prev) => ({ ...prev, installmentValue: true }));
                   }}
-                  placeholder="0 desabilita data"
+                  placeholder="123,45"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />

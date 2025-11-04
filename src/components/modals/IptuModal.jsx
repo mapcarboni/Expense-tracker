@@ -239,14 +239,14 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                     handleCurrencyBlur('garbageTaxCash');
                     setTouched((prev) => ({ ...prev, garbageTaxCash: true }));
                   }}
-                  placeholder="150,00"
+                  placeholder="123,45"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div className="col-span-2">
                 <label htmlFor="iptu-cashDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isCashDisabled && '(desabilitado - valor R$ 0,00)'}
+                  Vencimento {isCashDisabled}
                 </label>
                 <input
                   id="iptu-cashDate"
@@ -316,14 +316,14 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                     handleCurrencyBlur('garbageTaxInstallment');
                     setTouched((prev) => ({ ...prev, garbageTaxInstallment: true }));
                   }}
-                  placeholder="15,00"
+                  placeholder="12,34"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div>
                 <label htmlFor="iptu-instDate" className="block text-xs text-gray-400 mb-1">
-                  1ª Parcela {isInstallmentDisabled && '(desabilitado - valor R$ 0,00)'}
+                  1ª Parcela {isInstallmentDisabled}
                 </label>
                 <input
                   id="iptu-instDate"
