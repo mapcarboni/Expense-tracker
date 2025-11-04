@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import { formatMoney, parseToNumber } from '@/utils/formatters';
+import { useZeroValueDateHandler } from '@/hooks/useZeroValueDateHandler';
 import { INPUT_CLASS, INPUT_ERROR_CLASS, LABEL_CLASS } from '@/constants/app';
 
 const INITIAL_FORM = {
@@ -18,6 +19,10 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ✅ Hook para gerenciar datas baseadas em valores
+  const { isCashDisabled, isInstallmentDisabled, getCleanedFormData } =
+    useZeroValueDateHandler(form);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,6 +46,19 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
     }
   }, [editData, isOpen]);
 
+  // ✅ Limpa data quando valor é zerado
+  useEffect(() => {
+    if (isCashDisabled && form.cashDueDate) {
+      setForm((prev) => ({ ...prev, cashDueDate: '' }));
+    }
+  }, [isCashDisabled]);
+
+  useEffect(() => {
+    if (isInstallmentDisabled && form.firstInstallmentDate) {
+      setForm((prev) => ({ ...prev, firstInstallmentDate: '' }));
+    }
+  }, [isInstallmentDisabled]);
+
   const updateField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -63,13 +81,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
     [form, updateField],
   );
 
-  // ✅ Verifica se valores são zero para desabilitar datas
-  const isCashDisabled = useMemo(() => parseToNumber(form.cashValue) === 0, [form.cashValue]);
-  const isInstallmentDisabled = useMemo(
-    () => parseToNumber(form.installmentValue) === 0,
-    [form.installmentValue],
-  );
-
   const validateField = useCallback(
     (name, value) => {
       if (!touched[name]) return true;
@@ -81,7 +92,8 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
         case 'garbageTaxCash':
         case 'installmentValue':
         case 'garbageTaxInstallment':
-          return typeof value === 'string' && (value.startsWith('R$') || value.length > 0);
+          // ✅ Aceita 0 ou valores formatados
+          return typeof value === 'string' && (value.startsWith('R$') || value.length >= 0);
         case 'cashDueDate':
           return isCashDisabled || value.length > 0;
         case 'firstInstallmentDate':
@@ -97,12 +109,12 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
 
   const isFormValid =
     form.description.trim() &&
-    (form.cashValue.startsWith('R$') || form.cashValue.length > 0) &&
-    (form.garbageTaxCash.startsWith('R$') || form.garbageTaxCash.length > 0) &&
+    (form.cashValue.startsWith('R$') || form.cashValue.length >= 0) &&
+    (form.garbageTaxCash.startsWith('R$') || form.garbageTaxCash.length >= 0) &&
     (isCashDisabled || form.cashDueDate) &&
     form.installments &&
-    (form.installmentValue.startsWith('R$') || form.installmentValue.length > 0) &&
-    (form.garbageTaxInstallment.startsWith('R$') || form.garbageTaxInstallment.length > 0) &&
+    (form.installmentValue.startsWith('R$') || form.installmentValue.length >= 0) &&
+    (form.garbageTaxInstallment.startsWith('R$') || form.garbageTaxInstallment.length >= 0) &&
     (isInstallmentDisabled || form.firstInstallmentDate);
 
   const handleSubmit = useCallback(
@@ -113,21 +125,24 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
       setSaving(true);
 
       try {
-        await onSave({
+        // ✅ Limpa datas automaticamente quando valor = 0
+        const cleanedData = getCleanedFormData({
           id: editData?.id,
           type: 'IPTU',
           year,
           description: form.description,
           cashValue: parseToNumber(form.cashValue),
           garbageTaxCash: parseToNumber(form.garbageTaxCash),
-          cashDueDate: isCashDisabled ? null : form.cashDueDate,
+          cashDueDate: form.cashDueDate || null,
           installments: parseInt(form.installments),
           installmentValue: parseToNumber(form.installmentValue),
           garbageTaxInstallment: parseToNumber(form.garbageTaxInstallment),
-          firstInstallmentDate: isInstallmentDisabled ? null : form.firstInstallmentDate,
+          firstInstallmentDate: form.firstInstallmentDate || null,
           paymentChoice: editData?.paymentChoice || null,
           destination: editData?.destination || null,
         });
+
+        await onSave(cleanedData);
 
         setForm(INITIAL_FORM);
         setTouched({});
@@ -138,17 +153,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
         setSaving(false);
       }
     },
-    [
-      isFormValid,
-      saving,
-      onSave,
-      editData,
-      year,
-      form,
-      onClose,
-      isCashDisabled,
-      isInstallmentDisabled,
-    ],
+    [isFormValid, saving, onSave, editData, year, form, onClose, getCleanedFormData],
   );
 
   const handleKeyDown = useCallback(
@@ -168,7 +173,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 shadow-2xl">
-        {/* Header */}
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-700 bg-gray-800 px-5 py-3">
           <h2 className="text-lg font-semibold text-white">
             {editData ? 'Editar' : 'Nova'} Despesa IPTU {year}
@@ -182,9 +186,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
           </button>
         </div>
 
-        {/* Form - Compactado */}
         <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-5 space-y-4">
-          {/* Description */}
           <div>
             <label htmlFor="iptu-desc" className={LABEL_CLASS}>
               Descrição *
@@ -203,7 +205,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
             />
           </div>
 
-          {/* À Vista - Grid Compacto */}
           <div className="border-t border-gray-700 pt-3">
             <h3 className="text-sm font-medium text-white mb-2">Pagamento À Vista</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -219,7 +220,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                     handleCurrencyBlur('cashValue');
                     setTouched((prev) => ({ ...prev, cashValue: true }));
                   }}
-                  placeholder="1234,56"
+                  placeholder="1234,56 (0 para desabilitar data)"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -245,21 +246,22 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               </div>
               <div className="col-span-2">
                 <label htmlFor="iptu-cashDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isCashDisabled && '(desabilitado - valor zero)'}
+                  Vencimento {isCashDisabled && '(desabilitado - valor R$ 0,00)'}
                 </label>
                 <input
                   id="iptu-cashDate"
                   type="date"
                   value={form.cashDueDate}
                   onChange={(e) => updateField('cashDueDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${
+                    isCashDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                   disabled={saving || isCashDisabled}
                 />
               </div>
             </div>
           </div>
 
-          {/* Parcelado - Grid Compacto */}
           <div className="border-t border-gray-700 pt-3">
             <h3 className="text-sm font-medium text-white mb-2">Pagamento Parcelado</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -293,7 +295,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                     handleCurrencyBlur('installmentValue');
                     setTouched((prev) => ({ ...prev, installmentValue: true }));
                   }}
-                  placeholder="120,50"
+                  placeholder="120,50 (0 para desabilitar data)"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -321,21 +323,22 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               </div>
               <div>
                 <label htmlFor="iptu-instDate" className="block text-xs text-gray-400 mb-1">
-                  1ª Parcela {isInstallmentDisabled && '(desab.)'}
+                  1ª Parcela {isInstallmentDisabled && '(desabilitado - valor R$ 0,00)'}
                 </label>
                 <input
                   id="iptu-instDate"
                   type="date"
                   value={form.firstInstallmentDate}
                   onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${
+                    isInstallmentDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                   disabled={saving || isInstallmentDisabled}
                 />
               </div>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-2 border-t border-gray-700 pt-3">
             <button
               type="button"

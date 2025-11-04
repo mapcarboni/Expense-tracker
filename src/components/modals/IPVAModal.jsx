@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import { formatMoney, parseToNumber } from '@/utils/formatters';
-import { INPUT_CLASS, INPUT_ERROR_CLASS, LABEL_CLASS } from '@/constants/app';
+import { useZeroValueDateHandler } from '@/hooks/useZeroValueDateHandler';
+import { INPUT_CLASS, LABEL_CLASS } from '@/constants/app';
 
 const INITIAL_FORM = {
   description: '',
@@ -20,6 +21,15 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ✅ Hook gerencia todos os estados de desabilitação
+  const {
+    isCashDisabled,
+    isInstallmentDisabled,
+    isDpvatDisabled,
+    isLicensingDisabled,
+    getCleanedFormData,
+  } = useZeroValueDateHandler(form);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,6 +55,31 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
     }
   }, [editData, isOpen]);
 
+  // ✅ Auto-limpa datas quando valores são zerados
+  useEffect(() => {
+    if (isCashDisabled && form.cashDueDate) {
+      setForm((prev) => ({ ...prev, cashDueDate: '' }));
+    }
+  }, [isCashDisabled]);
+
+  useEffect(() => {
+    if (isInstallmentDisabled && form.firstInstallmentDate) {
+      setForm((prev) => ({ ...prev, firstInstallmentDate: '' }));
+    }
+  }, [isInstallmentDisabled]);
+
+  useEffect(() => {
+    if (isDpvatDisabled && form.dpvatDueDate) {
+      setForm((prev) => ({ ...prev, dpvatDueDate: '' }));
+    }
+  }, [isDpvatDisabled]);
+
+  useEffect(() => {
+    if (isLicensingDisabled && form.licensingDueDate) {
+      setForm((prev) => ({ ...prev, licensingDueDate: '' }));
+    }
+  }, [isLicensingDisabled]);
+
   const updateField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -67,56 +102,11 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
     [form, updateField],
   );
 
-  const isCashDisabled = useMemo(() => parseToNumber(form.cashValue) === 0, [form.cashValue]);
-  const isInstallmentDisabled = useMemo(
-    () => parseToNumber(form.installmentValue) === 0,
-    [form.installmentValue],
-  );
-  const isDpvatDisabled = useMemo(() => parseToNumber(form.dpvatValue) === 0, [form.dpvatValue]);
-  const isLicensingDisabled = useMemo(
-    () => parseToNumber(form.licensingValue) === 0,
-    [form.licensingValue],
-  );
-
-  const validateField = useCallback(
-    (name, value) => {
-      if (!touched[name]) return true;
-
-      switch (name) {
-        case 'description':
-          return value.trim().length > 0;
-        case 'cashValue':
-        case 'installmentValue':
-        case 'dpvatValue':
-        case 'licensingValue':
-          return typeof value === 'string' && (value.startsWith('R$') || value.length > 0);
-        case 'cashDueDate':
-          return isCashDisabled || value.length > 0;
-        case 'firstInstallmentDate':
-          return isInstallmentDisabled || value.length > 0;
-        case 'dpvatDueDate':
-          return isDpvatDisabled || value.length > 0;
-        case 'licensingDueDate':
-          return isLicensingDisabled || value.length > 0;
-        case 'installments':
-          return parseInt(value) >= 1;
-        default:
-          return true;
-      }
-    },
-    [touched, isCashDisabled, isInstallmentDisabled, isDpvatDisabled, isLicensingDisabled],
-  );
-
   const isFormValid =
     form.description.trim() &&
-    (form.cashValue.startsWith('R$') || form.cashValue.length > 0) &&
     (isCashDisabled || form.cashDueDate) &&
-    form.installments &&
-    (form.installmentValue.startsWith('R$') || form.installmentValue.length > 0) &&
     (isInstallmentDisabled || form.firstInstallmentDate) &&
-    (form.dpvatValue.startsWith('R$') || form.dpvatValue.length > 0) &&
     (isDpvatDisabled || form.dpvatDueDate) &&
-    (form.licensingValue.startsWith('R$') || form.licensingValue.length > 0) &&
     (isLicensingDisabled || form.licensingDueDate);
 
   const handleSubmit = useCallback(
@@ -127,23 +117,26 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
       setSaving(true);
 
       try {
-        await onSave({
+        // ✅ getCleanedFormData remove datas automaticamente
+        const cleanedData = getCleanedFormData({
           id: editData?.id,
           type: 'IPVA',
           year,
           description: form.description,
           cash_value: parseToNumber(form.cashValue),
-          cash_due_date: isCashDisabled ? null : form.cashDueDate,
+          cash_due_date: form.cashDueDate || null,
           installments: parseInt(form.installments),
           installment_value: parseToNumber(form.installmentValue),
-          first_installment_date: isInstallmentDisabled ? null : form.firstInstallmentDate,
+          first_installment_date: form.firstInstallmentDate || null,
           dpvat_value: parseToNumber(form.dpvatValue),
-          dpvat_due_date: isDpvatDisabled ? null : form.dpvatDueDate,
+          dpvat_due_date: form.dpvatDueDate || null,
           licensing_value: parseToNumber(form.licensingValue),
-          licensing_due_date: isLicensingDisabled ? null : form.licensingDueDate,
+          licensing_due_date: form.licensingDueDate || null,
           payment_choice: editData?.payment_choice || null,
           destination: editData?.destination || null,
         });
+
+        await onSave(cleanedData);
 
         setForm(INITIAL_FORM);
         setTouched({});
@@ -154,29 +147,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
         setSaving(false);
       }
     },
-    [
-      isFormValid,
-      saving,
-      onSave,
-      editData,
-      year,
-      form,
-      onClose,
-      isCashDisabled,
-      isInstallmentDisabled,
-      isDpvatDisabled,
-      isLicensingDisabled,
-    ],
-  );
-
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        if (isFormValid) handleSubmit();
-      }
-    },
-    [isFormValid, handleSubmit],
+    [isFormValid, saving, onSave, editData, year, form, onClose, getCleanedFormData],
   );
 
   if (!isOpen) return null;
@@ -199,7 +170,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label htmlFor="ipva-desc" className={LABEL_CLASS}>
               Descrição *
@@ -208,17 +179,14 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
               id="ipva-desc"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
-              onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
-              placeholder="Ex: Veículo"
-              className={
-                validateField('description', form.description) ? INPUT_CLASS : INPUT_ERROR_CLASS
-              }
+              className={INPUT_CLASS}
               disabled={saving}
               autoFocus
               required
             />
           </div>
 
+          {/* À Vista */}
           <div className="border-t border-gray-700 pt-3">
             <h3 className="text-sm font-medium text-white mb-2">À Vista</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -230,31 +198,29 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   id="ipva-cash"
                   value={form.cashValue.startsWith('R$') ? form.cashValue : form.cashValue}
                   onChange={(e) => handleCurrencyInput('cashValue', e.target.value)}
-                  onBlur={() => {
-                    handleCurrencyBlur('cashValue');
-                    setTouched((prev) => ({ ...prev, cashValue: true }));
-                  }}
-                  placeholder="1234,56"
+                  onBlur={() => handleCurrencyBlur('cashValue')}
+                  placeholder="0 desabilita data"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div>
                 <label htmlFor="ipva-cashDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isCashDisabled && '(desab.)'}
+                  Vencimento {isCashDisabled && '🔒'}
                 </label>
                 <input
                   id="ipva-cashDate"
                   type="date"
                   value={form.cashDueDate}
                   onChange={(e) => updateField('cashDueDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${isCashDisabled ? 'opacity-50' : ''}`}
                   disabled={saving || isCashDisabled}
                 />
               </div>
             </div>
           </div>
 
+          {/* Parcelado */}
           <div className="border-t border-gray-700 pt-3">
             <h3 className="text-sm font-medium text-white mb-2">Parcelado</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -284,31 +250,29 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                       : form.installmentValue
                   }
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
-                  onBlur={() => {
-                    handleCurrencyBlur('installmentValue');
-                    setTouched((prev) => ({ ...prev, installmentValue: true }));
-                  }}
-                  placeholder="450,00"
+                  onBlur={() => handleCurrencyBlur('installmentValue')}
+                  placeholder="0 desabilita data"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div className="col-span-2">
                 <label htmlFor="ipva-instDate" className="block text-xs text-gray-400 mb-1">
-                  1ª Parcela {isInstallmentDisabled && '(desab.)'}
+                  1ª Parcela {isInstallmentDisabled && '🔒'}
                 </label>
                 <input
                   id="ipva-instDate"
                   type="date"
                   value={form.firstInstallmentDate}
                   onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${isInstallmentDisabled ? 'opacity-50' : ''}`}
                   disabled={saving || isInstallmentDisabled}
                 />
               </div>
             </div>
           </div>
 
+          {/* DPVAT */}
           <div className="border-t border-gray-700 pt-3">
             <h3 className="text-sm font-medium text-white mb-2">DPVAT</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -320,31 +284,29 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                   id="ipva-dpvat"
                   value={form.dpvatValue.startsWith('R$') ? form.dpvatValue : form.dpvatValue}
                   onChange={(e) => handleCurrencyInput('dpvatValue', e.target.value)}
-                  onBlur={() => {
-                    handleCurrencyBlur('dpvatValue');
-                    setTouched((prev) => ({ ...prev, dpvatValue: true }));
-                  }}
-                  placeholder="50,00"
+                  onBlur={() => handleCurrencyBlur('dpvatValue')}
+                  placeholder="0 desabilita data"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div>
                 <label htmlFor="ipva-dpvatDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isDpvatDisabled && '(desab.)'}
+                  Vencimento {isDpvatDisabled && '🔒'}
                 </label>
                 <input
                   id="ipva-dpvatDate"
                   type="date"
                   value={form.dpvatDueDate}
                   onChange={(e) => updateField('dpvatDueDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${isDpvatDisabled ? 'opacity-50' : ''}`}
                   disabled={saving || isDpvatDisabled}
                 />
               </div>
             </div>
           </div>
 
+          {/* Licenciamento */}
           <div className="border-t border-gray-700 pt-3">
             <h3 className="text-sm font-medium text-white mb-2">Licenciamento</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -358,25 +320,22 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
                     form.licensingValue.startsWith('R$') ? form.licensingValue : form.licensingValue
                   }
                   onChange={(e) => handleCurrencyInput('licensingValue', e.target.value)}
-                  onBlur={() => {
-                    handleCurrencyBlur('licensingValue');
-                    setTouched((prev) => ({ ...prev, licensingValue: true }));
-                  }}
-                  placeholder="120,00"
+                  onBlur={() => handleCurrencyBlur('licensingValue')}
+                  placeholder="0 desabilita data"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div>
                 <label htmlFor="ipva-licDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isLicensingDisabled && '(desab.)'}
+                  Vencimento {isLicensingDisabled && '🔒'}
                 </label>
                 <input
                   id="ipva-licDate"
                   type="date"
                   value={form.licensingDueDate}
                   onChange={(e) => updateField('licensingDueDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${isLicensingDisabled ? 'opacity-50' : ''}`}
                   disabled={saving || isLicensingDisabled}
                 />
               </div>

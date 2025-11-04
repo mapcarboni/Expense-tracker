@@ -97,7 +97,7 @@ export default function DecisionPage() {
     closeAllExpenseModals();
 
     // ✅ NÃO abre modal de decisão automaticamente
-    toast.success('Despesa salva! Clique em "Decidir Agora" quando quiser.', {
+    toast.success('Despesa salva!', {
       toastId: 'expense-saved',
     });
   };
