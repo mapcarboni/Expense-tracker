@@ -428,9 +428,10 @@ export default function DecisionPage() {
           </div>
         </main>
 
-        {/* ✅ Renderização condicional - só renderiza quando aberto */}
+        {/* Renderização condicional - só renderiza quando aberto */}
         {isIPTUModalOpen && (
           <IPTUModal
+            isOpen={isIPTUModalOpen}
             onClose={closeAllExpenseModals}
             onSave={handleSaveExpense}
             year={selectedYear}
@@ -440,6 +441,7 @@ export default function DecisionPage() {
 
         {isIPVAModalOpen && (
           <IPVAModal
+            isOpen={isIPVAModalOpen}
             onClose={closeAllExpenseModals}
             onSave={handleSaveExpense}
             year={selectedYear}
@@ -449,6 +451,7 @@ export default function DecisionPage() {
 
         {isSeguroModalOpen && (
           <SeguroModal
+            isOpen={isSeguroModalOpen}
             onClose={closeAllExpenseModals}
             onSave={handleSaveExpense}
             year={selectedYear}
@@ -458,6 +461,7 @@ export default function DecisionPage() {
 
         {isOutrosModalOpen && (
           <OutrosModal
+            isOpen={isOutrosModalOpen}
             onClose={closeAllExpenseModals}
             onSave={handleSaveExpense}
             year={selectedYear}
@@ -467,6 +471,7 @@ export default function DecisionPage() {
 
         {isDecisionModalOpen && (
           <DecisionModal
+            isOpen={isDecisionModalOpen}
             onClose={() => {
               setIsDecisionModalOpen(false);
               setDecidingExpense(null);
