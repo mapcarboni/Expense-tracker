@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import { formatMoney, parseToNumber } from '@/utils/formatters';
+import { useZeroValueDateHandler } from '@/hooks/useZeroValueDateHandler';
 import { INPUT_CLASS, INPUT_ERROR_CLASS, LABEL_CLASS } from '@/constants/app';
 
 const INITIAL_FORM = {
@@ -14,6 +15,9 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ✅ Hook adaptado para modal "Outros" (usa campo "value" em vez de cash/installment)
+  const isDateDisabled = parseToNumber(form.value) === 0;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -31,6 +35,13 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
       setTouched({});
     }
   }, [editData, isOpen]);
+
+  // ✅ Auto-limpa data quando valor é zerado
+  useEffect(() => {
+    if (isDateDisabled && form.dueDate) {
+      setForm((prev) => ({ ...prev, dueDate: '' }));
+    }
+  }, [isDateDisabled]);
 
   const updateField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -54,8 +65,6 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
     [form, updateField],
   );
 
-  const isDateDisabled = useMemo(() => parseToNumber(form.value) === 0, [form.value]);
-
   const validateField = useCallback(
     (name, value) => {
       if (!touched[name]) return true;
@@ -64,7 +73,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
         case 'description':
           return value.trim().length > 0;
         case 'value':
-          return typeof value === 'string' && (value.startsWith('R$') || value.length > 0);
+          return typeof value === 'string' && (value.startsWith('R$') || value.length >= 0);
         case 'dueDate':
           return isDateDisabled || value.length > 0;
         case 'installments':
@@ -78,7 +87,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
 
   const isFormValid =
     form.description.trim() &&
-    (form.value.startsWith('R$') || form.value.length > 0) &&
+    (form.value.startsWith('R$') || form.value.length >= 0) &&
     form.installments >= 1 &&
     (isDateDisabled || form.dueDate);
 
@@ -92,7 +101,8 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
       try {
         const isInstallment = parseInt(form.installments) > 1;
 
-        await onSave({
+        // ✅ Limpa data se valor = 0
+        const cleanedData = {
           id: editData?.id,
           type: 'OUTROS',
           year,
@@ -104,7 +114,9 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
           first_installment_date: isInstallment ? (isDateDisabled ? null : form.dueDate) : null,
           payment_choice: editData?.payment_choice || null,
           destination: editData?.destination || null,
-        });
+        };
+
+        await onSave(cleanedData);
 
         setForm(INITIAL_FORM);
         setTouched({});
@@ -184,7 +196,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
                   handleCurrencyBlur('value');
                   setTouched((prev) => ({ ...prev, value: true }));
                 }}
-                placeholder="350,00"
+                placeholder="0 desabilita data"
                 className={INPUT_CLASS}
                 disabled={saving}
               />
@@ -219,14 +231,14 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
 
           <div>
             <label htmlFor="outros-date" className="block text-xs text-gray-400 mb-1">
-              Vencimento {isParcelado && '(1ª Parcela)'} {isDateDisabled && '(desab.)'}
+              Vencimento {isParcelado && '(1ª Parcela)'} {isDateDisabled && '🔒'}
             </label>
             <input
               id="outros-date"
               type="date"
               value={form.dueDate}
               onChange={(e) => updateField('dueDate', e.target.value)}
-              className={INPUT_CLASS}
+              className={`${INPUT_CLASS} ${isDateDisabled ? 'opacity-50' : ''}`}
               disabled={saving || isDateDisabled}
             />
           </div>

@@ -220,7 +220,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                     handleCurrencyBlur('cashValue');
                     setTouched((prev) => ({ ...prev, cashValue: true }));
                   }}
-                  placeholder="1234,56 (0 para desabilitar data)"
+                  placeholder="1234,56"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -295,7 +295,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                     handleCurrencyBlur('installmentValue');
                     setTouched((prev) => ({ ...prev, installmentValue: true }));
                   }}
-                  placeholder="120,50 (0 para desabilitar data)"
+                  placeholder="123,45"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />

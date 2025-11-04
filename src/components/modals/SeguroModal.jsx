@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import { formatMoney, parseToNumber } from '@/utils/formatters';
+import { useZeroValueDateHandler } from '@/hooks/useZeroValueDateHandler';
 import { INPUT_CLASS, INPUT_ERROR_CLASS, LABEL_CLASS } from '@/constants/app';
 
 const INITIAL_FORM = {
@@ -16,6 +17,10 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ✅ Hook para gerenciar datas baseadas em valores
+  const { isCashDisabled, isInstallmentDisabled, getCleanedFormData } =
+    useZeroValueDateHandler(form);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -36,6 +41,19 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
       setTouched({});
     }
   }, [editData, isOpen]);
+
+  // ✅ Auto-limpa datas quando valores são zerados
+  useEffect(() => {
+    if (isCashDisabled && form.cashDueDate) {
+      setForm((prev) => ({ ...prev, cashDueDate: '' }));
+    }
+  }, [isCashDisabled]);
+
+  useEffect(() => {
+    if (isInstallmentDisabled && form.firstInstallmentDate) {
+      setForm((prev) => ({ ...prev, firstInstallmentDate: '' }));
+    }
+  }, [isInstallmentDisabled]);
 
   const updateField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -59,12 +77,6 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
     [form, updateField],
   );
 
-  const isCashDisabled = useMemo(() => parseToNumber(form.cashValue) === 0, [form.cashValue]);
-  const isInstallmentDisabled = useMemo(
-    () => parseToNumber(form.installmentValue) === 0,
-    [form.installmentValue],
-  );
-
   const validateField = useCallback(
     (name, value) => {
       if (!touched[name]) return true;
@@ -74,7 +86,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
           return value.trim().length > 0;
         case 'cashValue':
         case 'installmentValue':
-          return typeof value === 'string' && (value.startsWith('R$') || value.length > 0);
+          return typeof value === 'string' && (value.startsWith('R$') || value.length >= 0);
         case 'cashDueDate':
           return isCashDisabled || value.length > 0;
         case 'firstInstallmentDate':
@@ -90,10 +102,10 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
 
   const isFormValid =
     form.description.trim() &&
-    (form.cashValue.startsWith('R$') || form.cashValue.length > 0) &&
+    (form.cashValue.startsWith('R$') || form.cashValue.length >= 0) &&
     (isCashDisabled || form.cashDueDate) &&
     form.installments &&
-    (form.installmentValue.startsWith('R$') || form.installmentValue.length > 0) &&
+    (form.installmentValue.startsWith('R$') || form.installmentValue.length >= 0) &&
     (isInstallmentDisabled || form.firstInstallmentDate);
 
   const handleSubmit = useCallback(
@@ -104,19 +116,22 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
       setSaving(true);
 
       try {
-        await onSave({
+        // ✅ getCleanedFormData remove datas automaticamente quando valor = 0
+        const cleanedData = getCleanedFormData({
           id: editData?.id,
           type: 'SEGURO',
           year,
           description: form.description,
           cash_value: parseToNumber(form.cashValue),
-          cash_due_date: isCashDisabled ? null : form.cashDueDate,
+          cash_due_date: form.cashDueDate || null,
           installments: parseInt(form.installments),
           installment_value: parseToNumber(form.installmentValue),
-          first_installment_date: isInstallmentDisabled ? null : form.firstInstallmentDate,
+          first_installment_date: form.firstInstallmentDate || null,
           payment_choice: editData?.payment_choice || null,
           destination: editData?.destination || null,
         });
+
+        await onSave(cleanedData);
 
         setForm(INITIAL_FORM);
         setTouched({});
@@ -127,17 +142,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
         setSaving(false);
       }
     },
-    [
-      isFormValid,
-      saving,
-      onSave,
-      editData,
-      year,
-      form,
-      onClose,
-      isCashDisabled,
-      isInstallmentDisabled,
-    ],
+    [isFormValid, saving, onSave, editData, year, form, onClose, getCleanedFormData],
   );
 
   const handleKeyDown = useCallback(
@@ -205,21 +210,21 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                     handleCurrencyBlur('cashValue');
                     setTouched((prev) => ({ ...prev, cashValue: true }));
                   }}
-                  placeholder="1500,00"
+                  placeholder="0 desabilita data"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div>
                 <label htmlFor="seguro-cashDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isCashDisabled && '(desab.)'}
+                  Vencimento {isCashDisabled && '🔒'}
                 </label>
                 <input
                   id="seguro-cashDate"
                   type="date"
                   value={form.cashDueDate}
                   onChange={(e) => updateField('cashDueDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${isCashDisabled ? 'opacity-50' : ''}`}
                   disabled={saving || isCashDisabled}
                 />
               </div>
@@ -260,21 +265,21 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                     handleCurrencyBlur('installmentValue');
                     setTouched((prev) => ({ ...prev, installmentValue: true }));
                   }}
-                  placeholder="150,00"
+                  placeholder="0 desabilita data"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
               </div>
               <div className="col-span-2">
                 <label htmlFor="seguro-instDate" className="block text-xs text-gray-400 mb-1">
-                  1ª Parcela {isInstallmentDisabled && '(desab.)'}
+                  1ª Parcela {isInstallmentDisabled && '🔒'}
                 </label>
                 <input
                   id="seguro-instDate"
                   type="date"
                   value={form.firstInstallmentDate}
                   onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} ${isInstallmentDisabled ? 'opacity-50' : ''}`}
                   disabled={saving || isInstallmentDisabled}
                 />
               </div>
