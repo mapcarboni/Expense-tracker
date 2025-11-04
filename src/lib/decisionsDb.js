@@ -3,6 +3,7 @@ import { MAX_YEARS_RETAINED } from '@/constants/app';
 
 /**
  * Converte dados do frontend (camelCase) para banco (snake_case)
+ * Frontend envia valores como números decimais (123.45)
  */
 function toDbFormat(expense) {
   return {
@@ -11,22 +12,22 @@ function toDbFormat(expense) {
     payment_choice: expense.paymentChoice || null,
     destination: expense.destination || null,
 
-    // Valores à vista
+    // Valores à vista - converte para decimal
     cash_value: expense.cashValue ? parseFloat(expense.cashValue) : null,
     cash_due_date: expense.cashDueDate || null,
 
-    // Valores parcelados
+    // Valores parcelados - converte para decimal
     installments: expense.installments ? parseInt(expense.installments) : null,
     installment_value: expense.installmentValue ? parseFloat(expense.installmentValue) : null,
     first_installment_date: expense.firstInstallmentDate || null,
 
-    // IPTU específico
+    // IPTU específico - converte para decimal
     garbage_tax_cash: expense.garbageTaxCash ? parseFloat(expense.garbageTaxCash) : null,
     garbage_tax_installment: expense.garbageTaxInstallment
       ? parseFloat(expense.garbageTaxInstallment)
       : null,
 
-    // IPVA específico
+    // IPVA específico - converte para decimal
     dpvat_value: expense.dpvatValue ? parseFloat(expense.dpvatValue) : null,
     dpvat_due_date: expense.dpvatDueDate || null,
     licensing_value: expense.licensingValue ? parseFloat(expense.licensingValue) : null,
@@ -35,9 +36,18 @@ function toDbFormat(expense) {
 }
 
 /**
- * Converte dados do banco (snake_case) para frontend (camelCase)
+ * Converte dados do banco (snake_case, decimal) para frontend (camelCase, centavos como string)
+ * Banco retorna valores como decimais (123.45)
+ * Frontend espera centavos como string ("12345") para formatação
  */
 function fromDbFormat(dbExpense) {
+  // Função auxiliar para converter decimal do banco para centavos (string)
+  const toFrontendValue = (dbValue) => {
+    if (dbValue === null || dbValue === undefined) return null;
+    // Converte decimal para centavos: 123.45 -> "12345"
+    return String(Math.round(dbValue * 100));
+  };
+
   return {
     id: dbExpense.id,
     type: dbExpense.type,
@@ -45,24 +55,28 @@ function fromDbFormat(dbExpense) {
     paymentChoice: dbExpense.payment_choice,
     destination: dbExpense.destination,
 
-    // Valores à vista
-    cashValue: dbExpense.cash_value,
+    // Valores à vista - converte decimal para centavos
+    cashValue: toFrontendValue(dbExpense.cash_value),
     cashDueDate: dbExpense.cash_due_date,
 
-    // Valores parcelados
+    // Valores parcelados - converte decimal para centavos
     installments: dbExpense.installments,
-    installmentValue: dbExpense.installment_value,
+    installmentValue: toFrontendValue(dbExpense.installment_value),
     firstInstallmentDate: dbExpense.first_installment_date,
 
-    // IPTU específico
-    garbageTaxCash: dbExpense.garbage_tax_cash,
-    garbageTaxInstallment: dbExpense.garbage_tax_installment,
+    // IPTU específico - converte decimal para centavos
+    garbageTaxCash: toFrontendValue(dbExpense.garbage_tax_cash),
+    garbageTaxInstallment: toFrontendValue(dbExpense.garbage_tax_installment),
 
-    // IPVA específico
-    dpvatValue: dbExpense.dpvat_value,
+    // IPVA específico - converte decimal para centavos
+    dpvatValue: toFrontendValue(dbExpense.dpvat_value),
     dpvatDueDate: dbExpense.dpvat_due_date,
-    licensingValue: dbExpense.licensing_value,
+    licensingValue: toFrontendValue(dbExpense.licensing_value),
     licensingDueDate: dbExpense.licensing_due_date,
+
+    // OUTROS específico - converte decimal para centavos
+    value: toFrontendValue(dbExpense.cash_value || dbExpense.installment_value),
+    dueDate: dbExpense.cash_due_date || dbExpense.first_installment_date,
 
     createdAt: dbExpense.created_at,
     updatedAt: dbExpense.updated_at,
@@ -83,7 +97,7 @@ export async function loadYearPlan(userId, year) {
 
     if (error) throw error;
 
-    // Converte snake_case → camelCase
+    // Converte snake_case → camelCase e decimal → centavos
     return (data || []).map(fromDbFormat);
   } catch (error) {
     console.error('Erro ao carregar planejamento:', error);

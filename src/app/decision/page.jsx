@@ -96,7 +96,6 @@ export default function DecisionPage() {
     setHasUnsavedChanges(true);
     closeAllExpenseModals();
 
-    // ✅ NÃO abre modal de decisão automaticamente
     toast.success('Despesa salva!', {
       toastId: 'expense-saved',
     });
@@ -165,20 +164,21 @@ export default function DecisionPage() {
     switch (expense.type) {
       case 'IPTU':
         if (isCash) {
-          value = parseToNumber(expense.cashValue) + parseToNumber(expense.garbageTaxCash);
+          value = parseToNumber(expense.cashValue) + parseToNumber(expense.garbageTaxCash || 0);
         } else {
           const perMonth =
-            parseToNumber(expense.installmentValue) + parseToNumber(expense.garbageTaxInstallment);
-          value = perMonth * parseToNumber(expense.installments);
+            parseToNumber(expense.installmentValue) +
+            parseToNumber(expense.garbageTaxInstallment || 0);
+          value = perMonth * (expense.installments || 1);
         }
         break;
       case 'OUTROS':
-        value = parseToNumber(expense.value) * (isCash ? 1 : parseToNumber(expense.installments));
+        value = parseToNumber(expense.value) * (isCash ? 1 : expense.installments || 1);
         break;
       default:
         value = isCash
           ? parseToNumber(expense.cashValue)
-          : parseToNumber(expense.installmentValue) * parseToNumber(expense.installments);
+          : parseToNumber(expense.installmentValue) * (expense.installments || 1);
     }
 
     const date = isCash
@@ -257,7 +257,7 @@ export default function DecisionPage() {
 
     const isInstallment = expense.paymentChoice === 'installment';
     const installmentInfo = isInstallment
-      ? ` (${expense.installments}x de ${formatMoney(value / parseToNumber(expense.installments))})`
+      ? ` (${expense.installments}x de ${formatMoney(value / (expense.installments || 1))})`
       : '';
 
     return (
@@ -278,7 +278,7 @@ export default function DecisionPage() {
               <div className="flex items-center gap-2 p-3 rounded-md bg-green-900/30 border border-green-600">
                 <Check className="h-4 w-4 text-green-400 shrink-0" />
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-white">
                       {isInstallment ? '📅' : '💰'} {isInstallment ? 'Parcelado' : 'À Vista'}
                     </span>
@@ -301,7 +301,7 @@ export default function DecisionPage() {
                   <Calendar className="h-4 w-4 text-blue-400" />
                   <span>Data:</span>
                   <span className="font-medium text-white">
-                    {new Date(date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                    {date ? new Date(date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-300">
@@ -428,7 +428,6 @@ export default function DecisionPage() {
           </div>
         </main>
 
-        {/* Renderização condicional - só renderiza quando aberto */}
         {isIPTUModalOpen && (
           <IPTUModal
             isOpen={isIPTUModalOpen}

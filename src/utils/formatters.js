@@ -28,9 +28,23 @@ function normalizeInput(value) {
 
 /**
  * Formata valor em moeda brasileira (R$ 1.234,56)
- * Aceita: "1234,56", "1234.56", "123456" (centavos)
+ * Aceita múltiplos formatos de entrada:
+ * - String com centavos: "12345" → "R$ 123,45"
+ * - String formatada: "R$ 123,45" → "R$ 123,45"
+ * - Número decimal: 123.45 → "R$ 123,45"
+ * - String com vírgula/ponto: "123,45" ou "123.45" → "R$ 123,45"
  */
 export function formatMoney(value) {
+  if (value === null || value === undefined || value === '') return '';
+
+  // Se já está formatado, retorna como está
+  if (typeof value === 'string' && value.startsWith('R$')) return value;
+
+  // Se é número decimal (vindo do banco), converte para centavos primeiro
+  if (typeof value === 'number') {
+    value = String(Math.round(value * 100));
+  }
+
   const cleanValue = normalizeInput(value);
 
   if (!cleanValue || cleanValue === '0' || cleanValue === '00') return '';
@@ -45,8 +59,12 @@ export function formatMoney(value) {
 }
 
 /**
- * Converte string formatada ou número para valor decimal
- * Aceita: "R$ 1.234,56", "1234,56", "1234.56", "123456" (centavos)
+ * Converte qualquer formato para valor decimal (número)
+ * Aceita:
+ * - String formatada: "R$ 1.234,56" → 1234.56
+ * - String com centavos: "123456" → 1234.56
+ * - String com vírgula/ponto: "1234,56" ou "1234.56" → 1234.56
+ * - Número: 1234.56 → 1234.56
  */
 export function parseToNumber(value) {
   if (typeof value === 'number') return value;
@@ -78,4 +96,24 @@ export function formatMoneyInput(value) {
 export function isValidMoneyValue(value, min = 0.01, max = 9999999.99) {
   const numeric = parseToNumber(value);
   return numeric >= min && numeric <= max;
+}
+
+/**
+ * Formata valores vindos do banco para exibição
+ * Aceita centavos (string) ou decimal (number) e retorna formatado
+ */
+export function formatDbValue(dbValue) {
+  if (dbValue === null || dbValue === undefined) return '';
+
+  // Se for string (centavos), formata direto
+  if (typeof dbValue === 'string') {
+    return formatMoney(dbValue);
+  }
+
+  // Se for número decimal, formata
+  if (typeof dbValue === 'number') {
+    return formatMoney(dbValue);
+  }
+
+  return '';
 }
