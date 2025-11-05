@@ -44,7 +44,6 @@ export default function DecisionPage() {
   const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
 
-  // Proteção contra saída do navegador
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
@@ -61,52 +60,38 @@ export default function DecisionPage() {
     if (!userId) return;
 
     try {
-      console.log('🔍 Buscando anos disponíveis para userId:', userId);
       const savedYears = await getAvailableYears(userId);
-      console.log('✅ Anos retornados do Supabase:', savedYears);
-
       const yearsSet = new Set([currentYear, ...savedYears]);
       const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
-
-      console.log('📅 Anos finais (salvos + atual):', sortedYears);
       setAvailableYears(sortedYears);
     } catch (error) {
-      console.error('❌ Erro ao carregar anos disponíveis:', error);
+      console.error('Erro ao carregar anos disponíveis:', error);
       setAvailableYears([currentYear]);
     }
   };
 
   useEffect(() => {
     if (userId) {
-      console.log('🔄 userId mudou, carregando anos...');
       loadAvailableYears();
     }
   }, [userId]);
 
   useEffect(() => {
     if (userId && selectedYear) {
-      console.log('🔄 Carregando planejamento para:', { userId, selectedYear });
       loadPlan();
     }
   }, [userId, selectedYear]);
 
   const loadPlan = async () => {
-    if (!userId) {
-      console.warn('⚠️ Tentou carregar plano sem userId');
-      return;
-    }
+    if (!userId) return;
 
     setIsLoading(true);
     try {
-      console.log('📥 Carregando dados do ano:', selectedYear);
       const data = await loadYearPlan(userId, selectedYear);
-      console.log('✅ Dados carregados:', data);
-      console.log('📊 Total de despesas:', data.length);
-
       setExpenses(data);
       setHasUnsavedChanges(false);
     } catch (error) {
-      console.error('❌ Erro ao carregar planejamento:', error);
+      console.error('Erro ao carregar planejamento:', error);
       toast.error('Erro ao carregar planejamento');
       setExpenses([]);
     } finally {
@@ -125,8 +110,6 @@ export default function DecisionPage() {
   };
 
   const handleSaveExpense = (expenseData) => {
-    console.log('💾 Salvando despesa:', expenseData);
-
     if (expenses.find((e) => e.id === expenseData.id)) {
       setExpenses((prev) =>
         prev.map((e) => (e.id === expenseData.id ? { ...expenseData, createdAt: e.createdAt } : e)),
@@ -149,7 +132,6 @@ export default function DecisionPage() {
   };
 
   const handleConfirmDecision = (expenseWithDecision) => {
-    console.log('✅ Decisão confirmada:', expenseWithDecision);
     setExpenses((prev) =>
       prev.map((e) => (e.id === expenseWithDecision.id ? expenseWithDecision : e)),
     );
@@ -178,7 +160,6 @@ export default function DecisionPage() {
 
   const confirmDelete = () => {
     if (expenseToDelete) {
-      console.log('🗑️ Deletando despesa:', expenseToDelete.id);
       setExpenses((prev) => prev.filter((e) => e.id !== expenseToDelete.id));
       setHasUnsavedChanges(true);
       toast.success('Despesa excluída');
@@ -191,14 +172,13 @@ export default function DecisionPage() {
     setIsSaving(true);
 
     try {
-      console.log('💾 Salvando planejamento:', { userId, selectedYear, expenses });
       await saveYearPlan(userId, selectedYear, expenses);
       setHasUnsavedChanges(false);
       toast.success(`Planejamento ${selectedYear} salvo com sucesso!`);
       await loadAvailableYears();
       await loadPlan();
     } catch (error) {
-      console.error('❌ Erro ao salvar planejamento:', error);
+      console.error('Erro ao salvar planejamento:', error);
       toast.error('Erro ao salvar planejamento');
     } finally {
       setIsSaving(false);
@@ -405,18 +385,9 @@ export default function DecisionPage() {
     );
   };
 
-  // ✅ Debug de renderização
-  console.log('🎨 Renderizando Decision Page:', {
-    userId,
-    selectedYear,
-    expensesCount: expenses.length,
-    isLoading,
-    hasUnsavedChanges,
-  });
-
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
         <Header
           hasUnsavedChanges={hasUnsavedChanges}
           onSave={handleSavePlanning}
@@ -489,7 +460,6 @@ export default function DecisionPage() {
             </div>
           )}
 
-          {/* ✅ Estado de Loading */}
           {isLoading ? (
             <div className="rounded-lg border border-gray-600 bg-gray-800/50 p-12 text-center">
               <div className="flex flex-col items-center gap-4">

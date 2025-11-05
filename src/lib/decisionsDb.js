@@ -3,31 +3,34 @@ import { MAX_YEARS_RETAINED } from '@/constants/app';
 
 /**
  * Converte dados do frontend (camelCase) para banco (snake_case)
- * Frontend envia valores como números decimais (123.45)
+ * ⚠️ IMPORTANTE: Sempre envia TODOS os campos para satisfazer constraints
  */
 function toDbFormat(expense) {
+  // Para OUTROS, precisa lidar com os campos especiais
+  const isOutros = expense.type === 'OUTROS';
+
   return {
     type: expense.type,
     description: expense.description,
     payment_choice: expense.paymentChoice || null,
     destination: expense.destination || null,
 
-    // Valores à vista - converte para decimal
+    // À vista
     cash_value: expense.cashValue ? parseFloat(expense.cashValue) : null,
     cash_due_date: expense.cashDueDate || null,
 
-    // Valores parcelados - converte para decimal
+    // Parcelado
     installments: expense.installments ? parseInt(expense.installments) : null,
     installment_value: expense.installmentValue ? parseFloat(expense.installmentValue) : null,
     first_installment_date: expense.firstInstallmentDate || null,
 
-    // IPTU específico - converte para decimal
+    // IPTU específico
     garbage_tax_cash: expense.garbageTaxCash ? parseFloat(expense.garbageTaxCash) : null,
     garbage_tax_installment: expense.garbageTaxInstallment
       ? parseFloat(expense.garbageTaxInstallment)
       : null,
 
-    // IPVA específico - converte para decimal
+    // IPVA específico
     dpvat_value: expense.dpvatValue ? parseFloat(expense.dpvatValue) : null,
     dpvat_due_date: expense.dpvatDueDate || null,
     licensing_value: expense.licensingValue ? parseFloat(expense.licensingValue) : null,
@@ -36,15 +39,11 @@ function toDbFormat(expense) {
 }
 
 /**
- * Converte dados do banco (snake_case, decimal) para frontend (camelCase, centavos como string)
- * Banco retorna valores como decimais (123.45)
- * Frontend espera centavos como string ("12345") para formatação
+ * Converte dados do banco para frontend
  */
 function fromDbFormat(dbExpense) {
-  // Função auxiliar para converter decimal do banco para centavos (string)
   const toFrontendValue = (dbValue) => {
     if (dbValue === null || dbValue === undefined) return null;
-    // Converte decimal para centavos: 123.45 -> "12345"
     return String(Math.round(dbValue * 100));
   };
 
@@ -55,26 +54,21 @@ function fromDbFormat(dbExpense) {
     paymentChoice: dbExpense.payment_choice,
     destination: dbExpense.destination,
 
-    // Valores à vista - converte decimal para centavos
     cashValue: toFrontendValue(dbExpense.cash_value),
     cashDueDate: dbExpense.cash_due_date,
 
-    // Valores parcelados - converte decimal para centavos
     installments: dbExpense.installments,
     installmentValue: toFrontendValue(dbExpense.installment_value),
     firstInstallmentDate: dbExpense.first_installment_date,
 
-    // IPTU específico - converte decimal para centavos
     garbageTaxCash: toFrontendValue(dbExpense.garbage_tax_cash),
     garbageTaxInstallment: toFrontendValue(dbExpense.garbage_tax_installment),
 
-    // IPVA específico - converte decimal para centavos
     dpvatValue: toFrontendValue(dbExpense.dpvat_value),
     dpvatDueDate: dbExpense.dpvat_due_date,
     licensingValue: toFrontendValue(dbExpense.licensing_value),
     licensingDueDate: dbExpense.licensing_due_date,
 
-    // OUTROS específico - converte decimal para centavos
     value: toFrontendValue(dbExpense.cash_value || dbExpense.installment_value),
     dueDate: dbExpense.cash_due_date || dbExpense.first_installment_date,
 
@@ -97,7 +91,6 @@ export async function loadYearPlan(userId, year) {
 
     if (error) throw error;
 
-    // Converte snake_case → camelCase e decimal → centavos
     return (data || []).map(fromDbFormat);
   } catch (error) {
     console.error('Erro ao carregar planejamento:', error);
@@ -106,11 +99,11 @@ export async function loadYearPlan(userId, year) {
 }
 
 /**
- * Limpa anos antigos mantendo apenas os últimos 6 anos (incluindo atual)
+ * Limpa anos antigos
  */
 async function cleanOldYears(userId, currentYear) {
   try {
-    const minYearAllowed = currentYear - 5; // Últimos 6 anos incluindo atual
+    const minYearAllowed = currentYear - 5;
 
     const { error } = await supabase
       .from('decisions')
@@ -119,25 +112,17 @@ async function cleanOldYears(userId, currentYear) {
       .lt('year', minYearAllowed);
 
     if (error) throw error;
-
-    console.log(`✅ Anos antigos removidos (< ${minYearAllowed})`);
   } catch (error) {
     console.error('Erro ao limpar anos antigos:', error);
-    // Não falha o save por causa da limpeza
   }
 }
 
 /**
- * Salva planejamento completo de um ano usando UPSERT incremental
- * Estratégia:
- * 1. INSERT novas despesas (sem ID ou com ID temporário)
- * 2. UPDATE despesas existentes (com UUID do banco)
- * 3. DELETE despesas removidas (estão no banco mas não no array)
- * 4. Limpa anos antigos
+ * Salva planejamento usando UPSERT incremental
  */
 export async function saveYearPlan(userId, year, expenses) {
   try {
-    // 1. Busca IDs existentes no banco para este ano
+    // 1. Busca despesas existentes
     const { data: existingExpenses, error: fetchError } = await supabase
       .from('decisions')
       .select('id')
@@ -147,19 +132,17 @@ export async function saveYearPlan(userId, year, expenses) {
     if (fetchError) throw fetchError;
 
     const existingIds = new Set((existingExpenses || []).map((e) => e.id));
-    const currentIds = new Set(
-      expenses.filter((e) => e.id && e.id.includes('-')).map((e) => e.id), // Filtra UUIDs válidos
-    );
+    const currentIds = new Set(expenses.filter((e) => e.id && e.id.includes('-')).map((e) => e.id));
 
-    // 2. Separa despesas em: novas, existentes e a deletar
+    // 2. Separa em INSERT, UPDATE, DELETE
     const toInsert = [];
     const toUpdate = [];
 
     expenses.forEach((expense) => {
-      const isUUID = expense.id && expense.id.includes('-'); // UUID tem formato "xxx-xxx-xxx"
+      const isUUID = expense.id && expense.id.includes('-');
 
       if (isUUID && existingIds.has(expense.id)) {
-        // Despesa existe no banco → UPDATE
+        // UPDATE: Envia TODOS os campos para satisfazer constraints
         toUpdate.push({
           id: expense.id,
           user_id: userId,
@@ -167,7 +150,7 @@ export async function saveYearPlan(userId, year, expenses) {
           ...toDbFormat(expense),
         });
       } else {
-        // Despesa nova → INSERT
+        // INSERT
         toInsert.push({
           user_id: userId,
           year,
@@ -176,28 +159,29 @@ export async function saveYearPlan(userId, year, expenses) {
       }
     });
 
-    // 3. IDs a deletar (estão no banco mas não no array atual)
     const toDelete = [...existingIds].filter((id) => !currentIds.has(id));
 
-    // 4. Executa operações no banco
+    // 3. Executa operações
     const promises = [];
 
-    // INSERT novas despesas
+    // INSERT
     if (toInsert.length > 0) {
       promises.push(supabase.from('decisions').insert(toInsert));
     }
 
-    // UPDATE despesas existentes
+    // UPDATE - Um por vez para melhor controle de erros
     if (toUpdate.length > 0) {
-      // Supabase não tem bulk update, então fazemos um por vez
       toUpdate.forEach((expense) => {
+        // ⚠️ Remove campos read-only antes do UPDATE
+        const { id, user_id, created_at, updated_at, ...updateData } = expense;
+
         promises.push(
-          supabase.from('decisions').update(expense).eq('id', expense.id).eq('user_id', userId),
+          supabase.from('decisions').update(updateData).eq('id', id).eq('user_id', user_id),
         );
       });
     }
 
-    // DELETE despesas removidas
+    // DELETE
     if (toDelete.length > 0) {
       promises.push(supabase.from('decisions').delete().eq('user_id', userId).in('id', toDelete));
     }
@@ -205,14 +189,14 @@ export async function saveYearPlan(userId, year, expenses) {
     // Aguarda todas as operações
     const results = await Promise.all(promises);
 
-    // Verifica se alguma operação falhou
+    // Verifica erros
     const errors = results.filter((r) => r.error);
     if (errors.length > 0) {
       console.error('Erros ao salvar:', errors);
       throw new Error('Falha ao salvar algumas despesas');
     }
 
-    // 5. Limpa anos antigos (não falha o save se der erro)
+    // 4. Limpa anos antigos
     await cleanOldYears(userId, year);
 
     return { success: true };
@@ -223,7 +207,7 @@ export async function saveYearPlan(userId, year, expenses) {
 }
 
 /**
- * Retorna lista de anos com despesas cadastradas
+ * Retorna lista de anos com despesas
  */
 export async function getAvailableYears(userId) {
   try {
