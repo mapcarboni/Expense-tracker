@@ -33,7 +33,7 @@ export function ConfirmDeleteModal({ isOpen, onClose, onConfirm, expenseName }) 
             </div>
           )}
           <p className="text-sm text-red-400">
-            ⚠️ Esta ação não poderá ser desfeita após salvar o planejamento.
+            Esta ação não poderá ser desfeita após salvar o planejamento.
           </p>
         </div>
 
