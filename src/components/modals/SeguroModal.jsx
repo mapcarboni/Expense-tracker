@@ -18,7 +18,6 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // ✅ Hook para gerenciar datas baseadas em valores
   const { isCashDisabled, isInstallmentDisabled, getCleanedFormData } =
     useZeroValueDateHandler(form);
 
@@ -26,15 +25,14 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
     if (!isOpen) return;
 
     if (editData) {
+      // ✅ CORRIGIDO: Formata valores ao carregar do banco
       setForm({
         description: editData.description,
-        cashValue: editData.cash_value ? String(editData.cash_value * 100) : '',
-        cashDueDate: editData.cash_due_date || '',
+        cashValue: editData.cashValue ? formatMoney(editData.cashValue) : '',
+        cashDueDate: editData.cashDueDate || '',
         installments: String(editData.installments || 2),
-        installmentValue: editData.installment_value
-          ? String(editData.installment_value * 100)
-          : '',
-        firstInstallmentDate: editData.first_installment_date || '',
+        installmentValue: editData.installmentValue ? formatMoney(editData.installmentValue) : '',
+        firstInstallmentDate: editData.firstInstallmentDate || '',
       });
     } else {
       setForm(INITIAL_FORM);
@@ -42,7 +40,6 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
     }
   }, [editData, isOpen]);
 
-  // ✅ Auto-limpa datas quando valores são zerados
   useEffect(() => {
     if (isCashDisabled && form.cashDueDate) {
       setForm((prev) => ({ ...prev, cashDueDate: '' }));
@@ -116,18 +113,17 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
       setSaving(true);
 
       try {
-        // ✅ getCleanedFormData remove datas automaticamente quando valor = 0
         const cleanedData = getCleanedFormData({
           id: editData?.id,
           type: 'SEGURO',
           year,
           description: form.description,
-          cash_value: parseToNumber(form.cashValue),
-          cash_due_date: form.cashDueDate || null,
+          cashValue: parseToNumber(form.cashValue),
+          cashDueDate: form.cashDueDate || null,
           installments: parseInt(form.installments),
-          installment_value: parseToNumber(form.installmentValue),
-          first_installment_date: form.firstInstallmentDate || null,
-          payment_choice: editData?.payment_choice || null,
+          installmentValue: parseToNumber(form.installmentValue),
+          firstInstallmentDate: form.firstInstallmentDate || null,
+          paymentChoice: editData?.paymentChoice || null,
           destination: editData?.destination || null,
         });
 
@@ -161,10 +157,10 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 shadow-2xl">
+      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 shadow-2xl">
         <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-700 bg-gray-800 px-5 py-3">
           <h2 className="text-lg font-semibold text-white">
-            {editData ? 'Editar' : 'Novo'} Seguro {year}
+            {editData ? 'Editar' : 'Nova'} Despesa Seguro {year}
           </h2>
           <button
             onClick={onClose}
@@ -178,33 +174,33 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
         <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-5 space-y-4">
           <div>
             <label htmlFor="seguro-desc" className={LABEL_CLASS}>
-              Descrição *
+              Descrição (ex: Seguro Auto, Residencial) *
             </label>
             <input
               id="seguro-desc"
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
-              placeholder="Ex: Seguro Residencial"
               className={
                 validateField('description', form.description) ? INPUT_CLASS : INPUT_ERROR_CLASS
               }
               disabled={saving}
               autoFocus
               required
+              placeholder="Tipo de seguro"
             />
           </div>
 
           <div className="border-t border-gray-700 pt-3">
-            <h3 className="text-sm font-medium text-white mb-2">À Vista</h3>
+            <h3 className="text-sm font-medium text-white mb-2">Pagamento À Vista</h3>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label htmlFor="seguro-cash" className="block text-xs text-gray-400 mb-1">
-                  Valor Total *
+                  Valor *
                 </label>
                 <input
                   id="seguro-cash"
-                  value={form.cashValue.startsWith('R$') ? form.cashValue : form.cashValue}
+                  value={form.cashValue}
                   onChange={(e) => handleCurrencyInput('cashValue', e.target.value)}
                   onBlur={() => {
                     handleCurrencyBlur('cashValue');
@@ -224,7 +220,9 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                   type="date"
                   value={form.cashDueDate}
                   onChange={(e) => updateField('cashDueDate', e.target.value)}
-                  className={`${INPUT_CLASS} ${isCashDisabled ? 'opacity-50' : ''}`}
+                  className={`${INPUT_CLASS} ${
+                    isCashDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                   disabled={saving || isCashDisabled}
                 />
               </div>
@@ -232,7 +230,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
           </div>
 
           <div className="border-t border-gray-700 pt-3">
-            <h3 className="text-sm font-medium text-white mb-2">Parcelado</h3>
+            <h3 className="text-sm font-medium text-white mb-2">Pagamento Parcelado</h3>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label htmlFor="seguro-inst" className="block text-xs text-gray-400 mb-1">
@@ -244,7 +242,6 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                   value={form.installments}
                   onChange={(e) => updateField('installments', e.target.value)}
                   min="1"
-                  placeholder="Ex: 12"
                   className={INPUT_CLASS}
                   disabled={saving}
                 />
@@ -255,11 +252,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
                 </label>
                 <input
                   id="seguro-instVal"
-                  value={
-                    form.installmentValue.startsWith('R$')
-                      ? form.installmentValue
-                      : form.installmentValue
-                  }
+                  value={form.installmentValue}
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
                   onBlur={() => {
                     handleCurrencyBlur('installmentValue');
@@ -272,32 +265,34 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
               </div>
               <div className="col-span-2">
                 <label htmlFor="seguro-instDate" className="block text-xs text-gray-400 mb-1">
-                  1ª Parcela {isInstallmentDisabled && '🔒'}
+                  Vencimento 1ª Parcela {isInstallmentDisabled && '🔒'}
                 </label>
                 <input
                   id="seguro-instDate"
                   type="date"
                   value={form.firstInstallmentDate}
                   onChange={(e) => updateField('firstInstallmentDate', e.target.value)}
-                  className={`${INPUT_CLASS} ${isInstallmentDisabled ? 'opacity-50' : ''}`}
+                  className={`${INPUT_CLASS} ${
+                    isInstallmentDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                   disabled={saving || isInstallmentDisabled}
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-gray-700 pt-3">
+          <div className="flex justify-end gap-2 pt-3">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50">
+              className="rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50">
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!isFormValid || saving}
-              className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -306,7 +301,7 @@ export default function SeguroModal({ isOpen, onClose, onSave, year, editData = 
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {editData ? 'Atualizar' : 'Salvar'}
+                  Salvar
                 </>
               )}
             </button>

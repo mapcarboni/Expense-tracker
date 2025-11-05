@@ -20,7 +20,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
   const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // ✅ Hook para gerenciar datas baseadas em valores
   const { isCashDisabled, isInstallmentDisabled, getCleanedFormData } =
     useZeroValueDateHandler(form);
 
@@ -28,15 +27,16 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
     if (!isOpen) return;
 
     if (editData) {
+      // ✅ CORRIGIDO: Formata valores ao carregar do banco
       setForm({
         description: editData.description,
-        cashValue: editData.cashValue ? String(editData.cashValue * 100) : '',
-        garbageTaxCash: editData.garbageTaxCash ? String(editData.garbageTaxCash * 100) : '',
+        cashValue: editData.cashValue ? formatMoney(editData.cashValue) : '',
+        garbageTaxCash: editData.garbageTaxCash ? formatMoney(editData.garbageTaxCash) : '',
         cashDueDate: editData.cashDueDate || '',
         installments: String(editData.installments || 2),
-        installmentValue: editData.installmentValue ? String(editData.installmentValue * 100) : '',
+        installmentValue: editData.installmentValue ? formatMoney(editData.installmentValue) : '',
         garbageTaxInstallment: editData.garbageTaxInstallment
-          ? String(editData.garbageTaxInstallment * 100)
+          ? formatMoney(editData.garbageTaxInstallment)
           : '',
         firstInstallmentDate: editData.firstInstallmentDate || '',
       });
@@ -46,7 +46,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
     }
   }, [editData, isOpen]);
 
-  // ✅ Limpa data quando valor é zerado
   useEffect(() => {
     if (isCashDisabled && form.cashDueDate) {
       setForm((prev) => ({ ...prev, cashDueDate: '' }));
@@ -92,7 +91,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
         case 'garbageTaxCash':
         case 'installmentValue':
         case 'garbageTaxInstallment':
-          // ✅ Aceita 0 ou valores formatados
           return typeof value === 'string' && (value.startsWith('R$') || value.length >= 0);
         case 'cashDueDate':
           return isCashDisabled || value.length > 0;
@@ -125,7 +123,6 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
       setSaving(true);
 
       try {
-        // ✅ Limpa datas automaticamente quando valor = 0
         const cleanedData = getCleanedFormData({
           id: editData?.id,
           type: 'IPTU',
@@ -214,7 +211,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                 </label>
                 <input
                   id="iptu-cash"
-                  value={form.cashValue.startsWith('R$') ? form.cashValue : form.cashValue}
+                  value={form.cashValue}
                   onChange={(e) => handleCurrencyInput('cashValue', e.target.value)}
                   onBlur={() => {
                     handleCurrencyBlur('cashValue');
@@ -231,9 +228,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                 </label>
                 <input
                   id="iptu-garbage"
-                  value={
-                    form.garbageTaxCash.startsWith('R$') ? form.garbageTaxCash : form.garbageTaxCash
-                  }
+                  value={form.garbageTaxCash}
                   onChange={(e) => handleCurrencyInput('garbageTaxCash', e.target.value)}
                   onBlur={() => {
                     handleCurrencyBlur('garbageTaxCash');
@@ -246,7 +241,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               </div>
               <div className="col-span-2">
                 <label htmlFor="iptu-cashDate" className="block text-xs text-gray-400 mb-1">
-                  Vencimento {isCashDisabled}
+                  Vencimento {isCashDisabled && '🔒'}
                 </label>
                 <input
                   id="iptu-cashDate"
@@ -285,11 +280,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                 </label>
                 <input
                   id="iptu-instVal"
-                  value={
-                    form.installmentValue.startsWith('R$')
-                      ? form.installmentValue
-                      : form.installmentValue
-                  }
+                  value={form.installmentValue}
                   onChange={(e) => handleCurrencyInput('installmentValue', e.target.value)}
                   onBlur={() => {
                     handleCurrencyBlur('installmentValue');
@@ -306,11 +297,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
                 </label>
                 <input
                   id="iptu-garbInst"
-                  value={
-                    form.garbageTaxInstallment.startsWith('R$')
-                      ? form.garbageTaxInstallment
-                      : form.garbageTaxInstallment
-                  }
+                  value={form.garbageTaxInstallment}
                   onChange={(e) => handleCurrencyInput('garbageTaxInstallment', e.target.value)}
                   onBlur={() => {
                     handleCurrencyBlur('garbageTaxInstallment');
@@ -323,7 +310,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               </div>
               <div>
                 <label htmlFor="iptu-instDate" className="block text-xs text-gray-400 mb-1">
-                  1ª Parcela {isInstallmentDisabled}
+                  Vencimento 1ª {isInstallmentDisabled && '🔒'}
                 </label>
                 <input
                   id="iptu-instDate"
@@ -339,18 +326,18 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-gray-700 pt-3">
+          <div className="flex justify-end gap-2 pt-3">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50">
+              className="rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50">
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!isFormValid || saving}
-              className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -359,7 +346,7 @@ export default function IPTUModal({ isOpen, onClose, onSave, year, editData = nu
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {editData ? 'Atualizar' : 'Salvar'}
+                  Salvar
                 </>
               )}
             </button>
