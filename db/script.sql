@@ -1,13 +1,15 @@
--- 🧹 Limpeza prévia: remover tabela e tipos, se existirem
+-- 🗑️ Drop APENAS da tabela decisions e seus types
+-- ✅ Seguro: Não afeta outras tabelas ou o sistema do Supabase
+
 DROP TABLE IF EXISTS decisions CASCADE;
 DROP TYPE IF EXISTS expense_type CASCADE;
 DROP TYPE IF EXISTS payment_type CASCADE;
 DROP TYPE IF EXISTS destination_type CASCADE;
 
--- 🧩 Extensão necessária
+-- 🧩 Extensão UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 🧱 Criação dos tipos ENUM
+-- 🧱 Types ENUM
 CREATE TYPE expense_type AS ENUM ('IPTU', 'IPVA', 'SEGURO', 'OUTROS');
 CREATE TYPE payment_type AS ENUM ('cash', 'installment');
 CREATE TYPE destination_type AS ENUM (
@@ -17,7 +19,7 @@ CREATE TYPE destination_type AS ENUM (
   'credit_card_2'
 );
 
--- 🗂️ Tabela principal
+-- 📋 Tabela decisions
 CREATE TABLE decisions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -28,20 +30,16 @@ CREATE TABLE decisions (
   payment_choice payment_type,
   destination destination_type,
 
-  -- À vista
   cash_value DECIMAL(10,2),
   cash_due_date DATE,
 
-  -- Parcelado
   installments INTEGER,
   installment_value DECIMAL(10,2),
   first_installment_date DATE,
 
-  -- IPTU específico
   garbage_tax_cash DECIMAL(10,2),
   garbage_tax_installment DECIMAL(10,2),
 
-  -- IPVA específico
   dpvat_value DECIMAL(10,2),
   dpvat_due_date DATE,
   licensing_value DECIMAL(10,2),
@@ -50,7 +48,6 @@ CREATE TABLE decisions (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
 
-  -- ✅ VALIDAÇÕES DINÂMICAS
   CONSTRAINT valid_year CHECK (
     year >= EXTRACT(YEAR FROM CURRENT_DATE) - 5 AND
     year <= EXTRACT(YEAR FROM CURRENT_DATE) + 10
@@ -67,25 +64,22 @@ CREATE TABLE decisions (
     (licensing_value IS NULL OR licensing_value >= 0)
   ),
   CONSTRAINT valid_payment_data CHECK (
-    -- Se escolheu cash, deve ter cash_value e cash_due_date
     (payment_choice = 'cash' AND cash_value IS NOT NULL AND cash_due_date IS NOT NULL) OR
-    -- Se escolheu installment, deve ter valores parcelados
     (payment_choice = 'installment' AND installments IS NOT NULL AND
      installment_value IS NOT NULL AND first_installment_date IS NOT NULL) OR
-    -- Ou ainda não decidiu
     (payment_choice IS NULL)
   )
 );
 
--- 🔍 Índices para performance
+-- 🔍 Índices
 CREATE INDEX idx_decisions_user_year ON decisions(user_id, year);
 CREATE INDEX idx_decisions_type ON decisions(type);
 CREATE INDEX idx_decisions_year ON decisions(year);
+CREATE INDEX idx_decisions_user_id ON decisions(user_id);
 
--- 🔒 Segurança em nível de linha (RLS)
+-- 🔒 RLS
 ALTER TABLE decisions ENABLE ROW LEVEL SECURITY;
 
--- 🧑‍💻 Políticas de acesso
 CREATE POLICY "Users can view own decisions"
   ON decisions FOR SELECT
   USING (auth.uid() = user_id);
@@ -102,32 +96,7 @@ CREATE POLICY "Users can delete own decisions"
   ON decisions FOR DELETE
   USING (auth.uid() = user_id);
 
--- 🧹 Função para limpar anos antigos automaticamente (trigger)
-CREATE OR REPLACE FUNCTION clean_old_years()
-RETURNS TRIGGER AS $$
-DECLARE
-  current_year INTEGER;
-  min_year_allowed INTEGER;
-BEGIN
-  current_year := EXTRACT(YEAR FROM CURRENT_DATE);
-  min_year_allowed := current_year - 5; -- Últimos 6 anos incluindo atual
-
-  -- Deleta anos fora do range permitido
-  DELETE FROM decisions
-  WHERE user_id = NEW.user_id
-    AND year < min_year_allowed;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger que executa após INSERT
-CREATE TRIGGER trigger_clean_old_years
-  AFTER INSERT ON decisions
-  FOR EACH ROW
-  EXECUTE FUNCTION clean_old_years();
-
--- 🕐 Trigger para atualizar updated_at automaticamente
+-- 🕐 Trigger
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN

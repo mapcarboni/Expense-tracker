@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Menu, X, Calendar, PiggyBank, LogOut, Loader2, ChevronDown } from 'lucide-react';
+import { Menu, X, Calendar, PiggyBank, LogOut, Loader2, ChevronDown, Save } from 'lucide-react';
 
 const ROUTES = {
   '/bills': {
@@ -33,7 +33,6 @@ export function Header({
   const [years, setYears] = useState([]);
   const [yearsLoading, setYearsLoading] = useState(true);
 
-  // ✅ Refs para detectar clique fora
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
@@ -67,6 +66,13 @@ export function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
+  // ✅ Fecha menu se houver mudanças não salvas
+  useEffect(() => {
+    if (hasUnsavedChanges && menuOpen) {
+      setMenuOpen(false);
+    }
+  }, [hasUnsavedChanges]);
+
   const fetchYears = async () => {
     try {
       const { data, error } = await supabase
@@ -99,34 +105,78 @@ export function Header({
     }
   };
 
-  const handleSave = async () => {
-    if (onSave) {
-      await onSave();
-    }
-  };
-
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-800 bg-gray-900/95 backdrop-blur-sm">
-      <div className="px-4 py-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          {/* Left: Menu + Title */}
-          <div className="flex items-center gap-3">
-            {/* Menu Hambúrguer */}
-            <div className="relative">
+    <header className="sticky top-0 z-40 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm">
+      <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        {/* Left: Logo + Title */}
+        <div className="flex items-center gap-3">
+          <Icon className="h-7 w-7 text-green-500" />
+          <div>
+            <h1 className="text-lg font-bold text-white">{currentRoute.label}</h1>
+            {currentRoute.description && (
+              <p className="text-xs text-gray-400">{currentRoute.description}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Center: Year Selector (only on /decision) */}
+        {pathname === '/decision' && selectedYear && onYearChange && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleYearChange(selectedYear - 1)}
+              disabled={hasUnsavedChanges}
+              className="rounded-lg bg-gray-800 px-3 py-1.5 text-white hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              ←
+            </button>
+            <span className="min-w-[80px] text-center text-lg font-bold text-white">
+              {selectedYear}
+            </span>
+            <button
+              onClick={() => handleYearChange(selectedYear + 1)}
+              disabled={hasUnsavedChanges}
+              className="rounded-lg bg-gray-800 px-3 py-1.5 text-white hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              →
+            </button>
+          </div>
+        )}
+
+        {/* Right: Save Button + Menu */}
+        <div className="flex items-center gap-3">
+          {/* ✅ Botão Salvar (visível quando há mudanças) */}
+          {hasUnsavedChanges && onSave && (
+            <button
+              onClick={onSave}
+              disabled={saveLoading}
+              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 font-semibold text-white transition hover:bg-green-700 disabled:opacity-50">
+              {saveLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Salvar Planejamento
+                </>
+              )}
+            </button>
+          )}
+
+          {/* ✅ Menu Hamburguer (oculto quando há mudanças) */}
+          {!hasUnsavedChanges && (
+            <>
               <button
                 ref={buttonRef}
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-                aria-label="Menu">
-                {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition">
+                {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
 
-              {/* Dropdown Menu */}
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute left-0 top-full mt-3 w-72 rounded-xl border border-gray-700 bg-gray-800 shadow-2xl z-40">
-                  <nav className="p-3 space-y-1">
+                  className="absolute right-4 top-16 w-64 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
+                  <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
                       const RouteIcon = route.icon;
                       const isActive = pathname === path;
@@ -136,96 +186,41 @@ export function Header({
                           key={path}
                           href={path}
                           onClick={() => setMenuOpen(false)}
-                          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-base transition-colors ${
+                          className={`flex items-center gap-3 rounded-lg px-4 py-3 transition ${
                             isActive
-                              ? 'bg-blue-600/20 text-blue-400'
+                              ? 'bg-green-600 text-white'
                               : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                           }`}>
-                          <RouteIcon className="h-4 w-4" />
-                          <div className="flex-1">
-                            <div className="font-medium">{route.label}</div>
-                            <div className="text-sm text-gray-500">{route.description}</div>
-                          </div>
+                          <RouteIcon className="h-5 w-5" />
+                          <span className="font-medium">{route.label}</span>
                         </Link>
                       );
                     })}
 
-                    <div className="border-t border-gray-700 mt-2 pt-2">
-                      <button
-                        onClick={() => {
-                          setMenuOpen(false);
-                          signOut();
-                        }}
-                        className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-400 hover:bg-red-600/10 transition-colors">
-                        <LogOut className="h-4 w-4" />
-                        <span className="font-medium">Sair</span>
-                      </button>
-                    </div>
+                    <hr className="my-2 border-gray-700" />
+
+                    <button
+                      onClick={signOut}
+                      className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-red-400 hover:bg-red-600/10 hover:text-red-300 transition">
+                      <LogOut className="h-5 w-5" />
+                      <span className="font-medium">Sair</span>
+                    </button>
                   </nav>
                 </div>
               )}
-            </div>
-
-            {/* Title */}
-            <div>
-              <h1 className="text-xl font-bold text-white sm:text-2xl">
-                {currentRoute.label} {selectedYear}
-              </h1>
-              {currentRoute.description && (
-                <p className="text-sm text-gray-400 mt-0.5">{currentRoute.description}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Unsaved Indicator + Year Selector */}
-          <div className="flex items-center gap-3">
-            {/* Unsaved Changes Indicator */}
-            {hasUnsavedChanges && (
-              <div className="flex items-center gap-2 rounded-lg bg-yellow-900/20 border border-yellow-600 px-3 py-2">
-                <div className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
-                <span className="text-xs text-yellow-200 font-medium">Não salvo</span>
-              </div>
-            )}
-
-            {/* Save Button */}
-            {hasUnsavedChanges && (
-              <button
-                onClick={handleSave}
-                disabled={saveLoading}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {saveLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="hidden sm:inline">Salvando...</span>
-                  </>
-                ) : (
-                  <span>Salvar</span>
-                )}
-              </button>
-            )}
-
-            {/* Year Selector */}
-            <div className="relative">
-              <select
-                value={selectedYear}
-                onChange={(e) => handleYearChange(Number(e.target.value))}
-                disabled={yearsLoading}
-                className="appearance-none rounded-lg border border-gray-700 bg-gray-800 pl-3 pr-8 py-2 text-sm text-white hover:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                {yearsLoading ? (
-                  <option>Carregando...</option>
-                ) : (
-                  years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))
-                )}
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* ✅ Barra de aviso quando menu está bloqueado */}
+      {hasUnsavedChanges && (
+        <div className="border-t border-yellow-600/30 bg-yellow-900/10 px-4 py-2">
+          <p className="text-center text-sm text-yellow-300">
+            🔒 Navegação bloqueada - Salve suas alterações primeiro
+          </p>
+        </div>
+      )}
     </header>
   );
 }

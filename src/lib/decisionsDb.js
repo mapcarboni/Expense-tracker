@@ -106,59 +106,114 @@ export async function loadYearPlan(userId, year) {
 }
 
 /**
- * Salva planejamento completo de um ano
- * Remove despesas existentes e insere as novas
- * Mantém apenas os últimos 6 anos (incluindo atual)
+ * Limpa anos antigos mantendo apenas os últimos 6 anos (incluindo atual)
  */
-export async function saveYearPlan(userId, year, expenses) {
+async function cleanOldYears(userId, currentYear) {
   try {
-    // 1. Busca todos os anos do usuário
-    const { data: allYears, error: yearsError } = await supabase
-      .from('decisions')
-      .select('year')
-      .eq('user_id', userId);
+    const minYearAllowed = currentYear - 5; // Últimos 6 anos incluindo atual
 
-    if (yearsError) throw yearsError;
-
-    // 2. Anos únicos ordenados (mais recente primeiro)
-    const uniqueYears = [...new Set(allYears?.map((d) => d.year) || [])];
-    const sortedYears = uniqueYears.sort((a, b) => b - a);
-
-    // 3. Deleta anos antigos se ultrapassar limite de 6
-    if (sortedYears.length >= MAX_YEARS_RETAINED && !sortedYears.includes(year)) {
-      const oldestYear = sortedYears[sortedYears.length - 1];
-
-      const { error: deleteOldError } = await supabase
-        .from('decisions')
-        .delete()
-        .eq('user_id', userId)
-        .eq('year', oldestYear);
-
-      if (deleteOldError) throw deleteOldError;
-    }
-
-    // 4. Deleta despesas existentes do ano atual
-    const { error: deleteError } = await supabase
+    const { error } = await supabase
       .from('decisions')
       .delete()
       .eq('user_id', userId)
+      .lt('year', minYearAllowed);
+
+    if (error) throw error;
+
+    console.log(`✅ Anos antigos removidos (< ${minYearAllowed})`);
+  } catch (error) {
+    console.error('Erro ao limpar anos antigos:', error);
+    // Não falha o save por causa da limpeza
+  }
+}
+
+/**
+ * Salva planejamento completo de um ano usando UPSERT incremental
+ * Estratégia:
+ * 1. INSERT novas despesas (sem ID ou com ID temporário)
+ * 2. UPDATE despesas existentes (com UUID do banco)
+ * 3. DELETE despesas removidas (estão no banco mas não no array)
+ * 4. Limpa anos antigos
+ */
+export async function saveYearPlan(userId, year, expenses) {
+  try {
+    // 1. Busca IDs existentes no banco para este ano
+    const { data: existingExpenses, error: fetchError } = await supabase
+      .from('decisions')
+      .select('id')
+      .eq('user_id', userId)
       .eq('year', year);
 
-    if (deleteError) throw deleteError;
+    if (fetchError) throw fetchError;
 
-    // 5. Se não há despesas, retorna sucesso
-    if (!expenses.length) return { success: true };
+    const existingIds = new Set((existingExpenses || []).map((e) => e.id));
+    const currentIds = new Set(
+      expenses.filter((e) => e.id && e.id.includes('-')).map((e) => e.id), // Filtra UUIDs válidos
+    );
 
-    // 6. Converte e insere novas despesas
-    const expensesToInsert = expenses.map((expense) => ({
-      user_id: userId,
-      year,
-      ...toDbFormat(expense),
-    }));
+    // 2. Separa despesas em: novas, existentes e a deletar
+    const toInsert = [];
+    const toUpdate = [];
 
-    const { error: insertError } = await supabase.from('decisions').insert(expensesToInsert);
+    expenses.forEach((expense) => {
+      const isUUID = expense.id && expense.id.includes('-'); // UUID tem formato "xxx-xxx-xxx"
 
-    if (insertError) throw insertError;
+      if (isUUID && existingIds.has(expense.id)) {
+        // Despesa existe no banco → UPDATE
+        toUpdate.push({
+          id: expense.id,
+          user_id: userId,
+          year,
+          ...toDbFormat(expense),
+        });
+      } else {
+        // Despesa nova → INSERT
+        toInsert.push({
+          user_id: userId,
+          year,
+          ...toDbFormat(expense),
+        });
+      }
+    });
+
+    // 3. IDs a deletar (estão no banco mas não no array atual)
+    const toDelete = [...existingIds].filter((id) => !currentIds.has(id));
+
+    // 4. Executa operações no banco
+    const promises = [];
+
+    // INSERT novas despesas
+    if (toInsert.length > 0) {
+      promises.push(supabase.from('decisions').insert(toInsert));
+    }
+
+    // UPDATE despesas existentes
+    if (toUpdate.length > 0) {
+      // Supabase não tem bulk update, então fazemos um por vez
+      toUpdate.forEach((expense) => {
+        promises.push(
+          supabase.from('decisions').update(expense).eq('id', expense.id).eq('user_id', userId),
+        );
+      });
+    }
+
+    // DELETE despesas removidas
+    if (toDelete.length > 0) {
+      promises.push(supabase.from('decisions').delete().eq('user_id', userId).in('id', toDelete));
+    }
+
+    // Aguarda todas as operações
+    const results = await Promise.all(promises);
+
+    // Verifica se alguma operação falhou
+    const errors = results.filter((r) => r.error);
+    if (errors.length > 0) {
+      console.error('Erros ao salvar:', errors);
+      throw new Error('Falha ao salvar algumas despesas');
+    }
+
+    // 5. Limpa anos antigos (não falha o save se der erro)
+    await cleanOldYears(userId, year);
 
     return { success: true };
   } catch (error) {

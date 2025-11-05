@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,11 +12,14 @@ import IPVAModal from '@/components/modals/IPVAModal';
 import SeguroModal from '@/components/modals/SeguroModal';
 import OutrosModal from '@/components/modals/OutrosModal';
 import DecisionModal from '@/components/modals/DecisionModal';
+import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
+import { UnsavedChangesModal } from '@/components/UnsavedChangesModal';
 import { loadYearPlan, saveYearPlan, getAvailableYears } from '@/lib/decisionsDb';
 import { parseToNumber, formatMoney } from '@/utils/formatters';
 
 export default function DecisionPage() {
   const { userId } = useAuth();
+  const router = useRouter();
   const currentYear = new Date().getFullYear();
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
@@ -33,6 +37,25 @@ export default function DecisionPage() {
 
   const [editingExpense, setEditingExpense] = useState(null);
   const [decidingExpense, setDecidingExpense] = useState(null);
+
+  // Estados para modais de confirmação
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
+  const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+
+  // Proteção contra saída do navegador
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const loadAvailableYears = async () => {
     try {
@@ -123,12 +146,19 @@ export default function DecisionPage() {
     setIsDecisionModalOpen(true);
   };
 
-  const handleDeleteExpense = (expenseId) => {
-    if (confirm('Tem certeza que deseja excluir esta despesa?')) {
-      setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+  const handleDeleteExpense = (expense) => {
+    setExpenseToDelete(expense);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (expenseToDelete) {
+      setExpenses((prev) => prev.filter((e) => e.id !== expenseToDelete.id));
       setHasUnsavedChanges(true);
       toast.success('Despesa excluída');
     }
+    setDeleteModalOpen(false);
+    setExpenseToDelete(null);
   };
 
   const handleSavePlanning = async () => {
@@ -139,12 +169,31 @@ export default function DecisionPage() {
       setHasUnsavedChanges(false);
       toast.success(`Planejamento ${selectedYear} salvo com sucesso!`);
       await loadAvailableYears();
+      await loadPlan();
     } catch (error) {
       console.error('Erro ao salvar planejamento:', error);
       toast.error('Erro ao salvar planejamento');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveAndNavigate = async () => {
+    await handleSavePlanning();
+    if (pendingNavigation) {
+      router.push(pendingNavigation);
+      setPendingNavigation(null);
+    }
+    setUnsavedModalOpen(false);
+  };
+
+  const handleDiscardAndNavigate = () => {
+    setHasUnsavedChanges(false);
+    if (pendingNavigation) {
+      router.push(pendingNavigation);
+      setPendingNavigation(null);
+    }
+    setUnsavedModalOpen(false);
   };
 
   const closeAllExpenseModals = () => {
@@ -244,7 +293,7 @@ export default function DecisionPage() {
                 <Edit2 className="h-4 w-4" />
               </button>
               <button
-                onClick={() => handleDeleteExpense(expense.id)}
+                onClick={() => handleDeleteExpense(expense)}
                 className="rounded p-1.5 text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
                 title="Excluir">
                 <Trash2 className="h-4 w-4" />
@@ -257,16 +306,18 @@ export default function DecisionPage() {
 
     const isInstallment = expense.paymentChoice === 'installment';
     const installmentInfo = isInstallment
-      ? ` (${expense.installments}x de ${formatMoney(value / (expense.installments || 1))})`
-      : '';
+      ? `${expense.installments}x de ${formatMoney(
+          String(parseToNumber(expense.installmentValue)),
+        )}`
+      : 'À vista';
 
     return (
       <div
         key={expense.id}
-        className="rounded-lg border border-gray-600 bg-gray-700 p-4 hover:bg-gray-650 transition-all">
+        className="rounded-lg border border-gray-600 bg-gray-800 p-4 hover:border-gray-500 transition-all">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
               <span className="text-lg">{categoryIcons[expense.type]}</span>
               <span className="rounded bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
                 {expense.type}
@@ -274,48 +325,41 @@ export default function DecisionPage() {
               <p className="font-semibold text-white">{expense.description}</p>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 p-3 rounded-md bg-green-900/30 border border-green-600">
-                <Check className="h-4 w-4 text-green-400 shrink-0" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-white">
-                      {isInstallment ? '📅' : '💰'} {isInstallment ? 'Parcelado' : 'À Vista'}
-                    </span>
-                    <span className="text-lg font-bold text-green-400">{formatMoney(value)}</span>
-                  </div>
-                  {installmentInfo && (
-                    <p className="text-xs text-gray-300 mt-1">{installmentInfo}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleChangeDecision(expense)}
-                  className="rounded p-1.5 text-green-400 hover:bg-green-900/50 hover:text-green-300 transition-colors"
-                  title="Alterar decisão">
-                  <Edit2 className="h-4 w-4" />
-                </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-gray-400">Valor Total:</span>
+                <span className="ml-2 font-semibold text-green-400">
+                  {formatMoney(String(value))}
+                </span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Calendar className="h-4 w-4 text-blue-400" />
-                  <span>Data:</span>
-                  <span className="font-medium text-white">
-                    {date ? new Date(date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}
+              <div>
+                <span className="text-gray-400">Pagamento:</span>
+                <span className="ml-2 font-medium text-white">{installmentInfo}</span>
+              </div>
+              {date && (
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                  <span className="text-gray-400">
+                    {new Date(date + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-300">
-                  <span className="text-blue-400">📍</span>
-                  <span>Destino:</span>
-                  <span className="font-medium text-white text-xs">
-                    {destinationLabels[expense.destination]}
-                  </span>
-                </div>
+              )}
+              <div>
+                <span className="text-gray-400">Destino:</span>
+                <span className="ml-2 text-purple-400 font-medium">
+                  {destinationLabels[expense.destination]}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="flex gap-1">
+            <button
+              onClick={() => handleChangeDecision(expense)}
+              className="rounded p-1.5 text-gray-400 hover:bg-blue-600 hover:text-white transition-colors"
+              title="Alterar Decisão">
+              <Check className="h-4 w-4" />
+            </button>
             <button
               onClick={() => handleEdit(expense)}
               className="rounded p-1.5 text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
@@ -323,7 +367,7 @@ export default function DecisionPage() {
               <Edit2 className="h-4 w-4" />
             </button>
             <button
-              onClick={() => handleDeleteExpense(expense.id)}
+              onClick={() => handleDeleteExpense(expense)}
               className="rounded p-1.5 text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
               title="Excluir">
               <Trash2 className="h-4 w-4" />
@@ -336,7 +380,7 @@ export default function DecisionPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-950">
+      <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
         <Header
           hasUnsavedChanges={hasUnsavedChanges}
           onSave={handleSavePlanning}
@@ -345,88 +389,98 @@ export default function DecisionPage() {
           onYearChange={setSelectedYear}
         />
 
-        <main className="p-4 md:p-6">
-          <div className="mx-auto max-w-7xl">
-            {hasUnsavedChanges && (
-              <div className="mb-4 rounded-lg bg-yellow-900/20 border border-yellow-600 p-3">
-                <p className="text-sm text-yellow-200">
-                  ⚠️ Você tem alterações não salvas. Clique em &quot;Salvar&quot; no header.
-                </p>
-              </div>
-            )}
+        <main className="container mx-auto px-4 py-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                Planejamento Financeiro {selectedYear}
+              </h1>
+              <p className="text-sm text-gray-400">
+                Gerencie suas despesas anuais (IPTU, IPVA, Seguros e Outros)
+              </p>
+            </div>
 
-            <div className="rounded-lg border border-gray-700 bg-gray-800 p-4 md:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Despesas {selectedYear}</h2>
+            <div className="relative">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                disabled={hasUnsavedChanges}
+                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 font-semibold text-white transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                <Plus className="h-5 w-5" />
+                Nova Despesa
+                <ChevronDown className="h-4 w-4" />
+              </button>
 
-                <div className="relative">
+              {isDropdownOpen && (
+                <div className="absolute right-0 z-10 mt-2 w-56 rounded-lg border border-gray-700 bg-gray-800 shadow-lg">
                   <button
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-                    <Plus className="h-4 w-4" />
-                    Nova Despesa
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${
-                        isDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                    />
+                    onClick={() => openModal('IPTU')}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 transition-colors rounded-t-lg">
+                    🏠 IPTU
                   </button>
-
-                  {isDropdownOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setIsDropdownOpen(false)}
-                      />
-                      <div className="absolute right-0 mt-2 w-full rounded-md border border-gray-600 bg-gray-800 shadow-lg z-20 py-1">
-                        <button
-                          onClick={() => openModal('IPTU')}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors">
-                          IPTU
-                        </button>
-                        <button
-                          onClick={() => openModal('IPVA')}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors">
-                          IPVA
-                        </button>
-                        <button
-                          onClick={() => openModal('SEGURO')}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors">
-                          Seguro
-                        </button>
-                        <button
-                          onClick={() => openModal('OUTROS')}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors">
-                          Outros
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {expenses.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-400 mb-2">
-                    Nenhuma despesa cadastrada para {selectedYear}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Clique em &quot;Nova Despesa&quot; para começar
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {expenses
-                    .sort((a, b) => {
-                      const categoryOrder = ['IPTU', 'IPVA', 'SEGURO', 'OUTROS'];
-                      return categoryOrder.indexOf(a.type) - categoryOrder.indexOf(b.type);
-                    })
-                    .map((expense) => renderExpenseCard(expense))}
+                  <button
+                    onClick={() => openModal('IPVA')}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 transition-colors">
+                    🚗 IPVA
+                  </button>
+                  <button
+                    onClick={() => openModal('SEGURO')}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 transition-colors">
+                    🛡️ Seguro
+                  </button>
+                  <button
+                    onClick={() => openModal('OUTROS')}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 transition-colors rounded-b-lg">
+                    📋 Outros
+                  </button>
                 </div>
               )}
             </div>
           </div>
+
+          {hasUnsavedChanges && (
+            <div className="mb-6 rounded-lg border border-yellow-600 bg-yellow-900/20 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div>
+                    <p className="font-semibold text-yellow-200">Você tem alterações não salvas</p>
+                    <p className="text-sm text-yellow-300">
+                      Clique em Salvar Planejamento para não perder suas mudanças
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {expenses.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-600 bg-gray-800/50 p-12 text-center">
+                <p className="text-gray-400">Nenhuma despesa cadastrada para {selectedYear}</p>
+                <p className="mt-2 text-sm text-gray-500">Clique em Nova Despesa para começar</p>
+              </div>
+            ) : (
+              expenses.map(renderExpenseCard)
+            )}
+          </div>
         </main>
+
+        <ConfirmDeleteModal
+          isOpen={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setExpenseToDelete(null);
+          }}
+          onConfirm={confirmDelete}
+          expenseName={expenseToDelete?.description}
+        />
+
+        <UnsavedChangesModal
+          isOpen={unsavedModalOpen}
+          onClose={() => setUnsavedModalOpen(false)}
+          onDiscard={handleDiscardAndNavigate}
+          onSave={handleSaveAndNavigate}
+        />
 
         {isIPTUModalOpen && (
           <IPTUModal
