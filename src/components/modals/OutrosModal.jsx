@@ -175,6 +175,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
+              placeholder='Ex: Contas ou Compras'
               className={INPUT_CLASS}
               disabled={saving}
               autoFocus

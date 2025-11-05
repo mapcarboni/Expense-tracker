@@ -212,7 +212,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
         <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="p-5 space-y-4">
           <div>
             <label htmlFor="ipva-desc" className={LABEL_CLASS}>
-              Descrição (ex: Placa ABC-1234) *
+              Descrição (ex: City) *
             </label>
             <input
               id="ipva-desc"
@@ -223,7 +223,7 @@ export default function IPVAModal({ isOpen, onClose, onSave, year, editData = nu
               disabled={saving}
               autoFocus
               required
-              placeholder="Placa do veículo"
+              placeholder="Veículo"
             />
           </div>
 
