@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { getAvailableYears } from '@/lib/decisionsDb';
 import { Menu, X, Calendar, PiggyBank, LogOut, Loader2, ChevronDown, Save } from 'lucide-react';
 
 const ROUTES = {
@@ -27,7 +27,7 @@ export function Header({
   selectedYear,
   onYearChange,
 }) {
-  const { signOut } = useAuth();
+  const { signOut, userId } = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [years, setYears] = useState([]);
@@ -43,9 +43,12 @@ export function Header({
   };
   const Icon = currentRoute.icon;
 
+  // ✅ Carrega anos do Supabase + ano atual
   useEffect(() => {
-    fetchYears();
-  }, []);
+    if (userId && pathname === '/decision') {
+      fetchYears();
+    }
+  }, [userId, pathname]);
 
   // ✅ Fecha menu ao clicar fora
   useEffect(() => {
@@ -74,23 +77,16 @@ export function Header({
   }, [hasUnsavedChanges]);
 
   const fetchYears = async () => {
+    setYearsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('decisions')
-        .select('year')
-        .order('year', { ascending: false });
-
-      if (error) throw error;
-
-      const uniqueYears = [...new Set(data?.map((d) => d.year) || [])];
+      const savedYears = await getAvailableYears(userId);
       const currentYear = new Date().getFullYear();
 
-      if (!uniqueYears.includes(currentYear)) {
-        uniqueYears.unshift(currentYear);
-        uniqueYears.sort((a, b) => b - a);
-      }
+      // ✅ Combina anos salvos + ano atual (sem duplicatas)
+      const yearsSet = new Set([currentYear, ...savedYears]);
+      const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-      setYears(uniqueYears);
+      setYears(sortedYears);
     } catch (error) {
       console.error('Erro ao buscar anos:', error);
       setYears([new Date().getFullYear()]);
@@ -100,7 +96,7 @@ export function Header({
   };
 
   const handleYearChange = (year) => {
-    if (onYearChange) {
+    if (onYearChange && !hasUnsavedChanges) {
       onYearChange(year);
     }
   };
@@ -119,24 +115,25 @@ export function Header({
           </div>
         </div>
 
-        {/* Center: Year Selector (only on /decision) */}
+        {/* Center: Year Dropdown (only on /decision) */}
         {pathname === '/decision' && selectedYear && onYearChange && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleYearChange(selectedYear - 1)}
-              disabled={hasUnsavedChanges}
-              className="rounded-lg bg-gray-800 px-3 py-1.5 text-white hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              ←
-            </button>
-            <span className="min-w-[80px] text-center text-lg font-bold text-white">
-              {selectedYear}
-            </span>
-            <button
-              onClick={() => handleYearChange(selectedYear + 1)}
-              disabled={hasUnsavedChanges}
-              className="rounded-lg bg-gray-800 px-3 py-1.5 text-white hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              →
-            </button>
+          <div className="relative">
+            <select
+              value={selectedYear}
+              onChange={(e) => handleYearChange(Number(e.target.value))}
+              disabled={yearsLoading || hasUnsavedChanges}
+              className="appearance-none rounded-lg border border-gray-700 bg-gray-800 pl-4 pr-10 py-2.5 text-white hover:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]">
+              {yearsLoading ? (
+                <option>Carregando...</option>
+              ) : (
+                years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))
+              )}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
         )}
 
