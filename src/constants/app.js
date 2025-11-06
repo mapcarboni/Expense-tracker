@@ -1,10 +1,28 @@
 // ========================================
 // CONFIGURAÇÕES GERAIS
 // ========================================
-export const MAX_YEARS_RETAINED = 6; // Últimos 6 anos incluindo atual
+export const YEARS_TO_RETAIN = 3;
 
 // ========================================
-// DESTINOS DE DESPESAS
+// VALIDAÇÕES (sincronizadas com banco)
+// ========================================
+export const VALIDATION = {
+  year: {
+    min: () => new Date().getFullYear() - 10,
+    max: () => new Date().getFullYear() + 10,
+  },
+  installments: {
+    min: 1,
+    max: 24,
+  },
+  value: {
+    min: 0,
+    max: 9999999.99,
+  },
+};
+
+// ========================================
+// DESTINOS
 // ========================================
 export const DESTINATIONS = [
   {
@@ -38,35 +56,13 @@ export const DESTINATION_LABELS = {
   credit_card_2: 'Cartão de Crédito Neca',
 };
 
-// ========================================
-// CATEGORIAS DE DESPESAS
-// ========================================
 export const EXPENSE_CATEGORIES = {
-  IPTU: {
-    label: 'IPTU',
-    icon: '🏠',
-    color: 'blue',
-  },
-  IPVA: {
-    label: 'IPVA',
-    icon: '🚗',
-    color: 'green',
-  },
-  SEGURO: {
-    label: 'Seguro',
-    icon: '🛡️',
-    color: 'purple',
-  },
-  OUTROS: {
-    label: 'Outros',
-    icon: '📋',
-    color: 'gray',
-  },
+  IPTU: { label: 'IPTU', icon: '🏠', color: 'blue' },
+  IPVA: { label: 'IPVA', icon: '🚗', color: 'green' },
+  SEGURO: { label: 'Seguro', icon: '🛡️', color: 'purple' },
+  OUTROS: { label: 'Outros', icon: '📋', color: 'gray' },
 };
 
-// ========================================
-// CLASSES CSS REUTILIZÁVEIS
-// ========================================
 export const INPUT_CLASS =
   'w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-1.5 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all';
 
@@ -80,21 +76,3 @@ export const BUTTON_PRIMARY =
 
 export const BUTTON_SECONDARY =
   'rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-600 transition-colors';
-
-// ========================================
-// VALIDAÇÕES
-// ========================================
-export const VALIDATION_RULES = {
-  year: {
-    min: new Date().getFullYear() - MAX_YEARS_RETAINED + 1,
-    max: new Date().getFullYear() + 10,
-  },
-  installments: {
-    min: 1,
-    max: 24,
-  },
-  value: {
-    min: 0.01,
-    max: 9999999.99,
-  },
-};

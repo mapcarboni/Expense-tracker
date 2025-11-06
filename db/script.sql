@@ -1,6 +1,6 @@
--- 🗑️ Drop APENAS da tabela decisions e seus types
--- ✅ Seguro: Não afeta outras tabelas ou o sistema do Supabase
+-- ✅ Execute este script no SQL Editor do Supabase
 
+-- 🗑️ Drop tabela antiga
 DROP TABLE IF EXISTS decisions CASCADE;
 DROP TYPE IF EXISTS expense_type CASCADE;
 DROP TYPE IF EXISTS payment_type CASCADE;
@@ -30,44 +30,28 @@ CREATE TABLE decisions (
   payment_choice payment_type,
   destination destination_type,
 
-  cash_value DECIMAL(10,2),
+  -- Valores podem ser 0, mas não negativos
+  cash_value DECIMAL(10,2) DEFAULT 0 CHECK (cash_value >= 0),
   cash_due_date DATE,
 
-  installments INTEGER,
-  installment_value DECIMAL(10,2),
+  installments INTEGER CHECK (installments IS NULL OR (installments >= 1 AND installments <= 24)),
+  installment_value DECIMAL(10,2) DEFAULT 0 CHECK (installment_value >= 0),
   first_installment_date DATE,
 
-  garbage_tax_cash DECIMAL(10,2),
-  garbage_tax_installment DECIMAL(10,2),
+  garbage_tax_cash DECIMAL(10,2) DEFAULT 0 CHECK (garbage_tax_cash >= 0),
+  garbage_tax_installment DECIMAL(10,2) DEFAULT 0 CHECK (garbage_tax_installment >= 0),
 
-  dpvat_value DECIMAL(10,2),
+  dpvat_value DECIMAL(10,2) DEFAULT 0 CHECK (dpvat_value >= 0),
   dpvat_due_date DATE,
-  licensing_value DECIMAL(10,2),
+  licensing_value DECIMAL(10,2) DEFAULT 0 CHECK (licensing_value >= 0),
   licensing_due_date DATE,
 
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
 
   CONSTRAINT valid_year CHECK (
-    year >= EXTRACT(YEAR FROM CURRENT_DATE) - 5 AND
+    year >= EXTRACT(YEAR FROM CURRENT_DATE) - 10 AND
     year <= EXTRACT(YEAR FROM CURRENT_DATE) + 10
-  ),
-  CONSTRAINT valid_installments CHECK (
-    installments IS NULL OR (installments >= 1 AND installments <= 24)
-  ),
-  CONSTRAINT valid_values CHECK (
-    (cash_value IS NULL OR cash_value >= 0.01) AND
-    (installment_value IS NULL OR installment_value >= 0.01) AND
-    (garbage_tax_cash IS NULL OR garbage_tax_cash >= 0) AND
-    (garbage_tax_installment IS NULL OR garbage_tax_installment >= 0) AND
-    (dpvat_value IS NULL OR dpvat_value >= 0) AND
-    (licensing_value IS NULL OR licensing_value >= 0)
-  ),
-  CONSTRAINT valid_payment_data CHECK (
-    (payment_choice = 'cash' AND cash_value IS NOT NULL AND cash_due_date IS NOT NULL) OR
-    (payment_choice = 'installment' AND installments IS NOT NULL AND
-     installment_value IS NOT NULL AND first_installment_date IS NOT NULL) OR
-    (payment_choice IS NULL)
   )
 );
 

@@ -1,52 +1,43 @@
 import { supabase } from './supabase';
-import { MAX_YEARS_RETAINED } from '@/constants/app';
+
+// ⚙️ CONFIGURAÇÃO: Quantos anos manter (ano atual + N anteriores)
+const YEARS_TO_RETAIN = 3; // Ex: 2025, 2024, 2023
 
 /**
- * Converte dados do frontend (camelCase) para banco (snake_case)
- * ⚠️ IMPORTANTE: Sempre envia TODOS os campos para satisfazer constraints
+ * Converte frontend → banco
+ * "R$ 123,10" → 123.10 (DECIMAL)
  */
 function toDbFormat(expense) {
-  // Para OUTROS, precisa lidar com os campos especiais
-  const isOutros = expense.type === 'OUTROS';
-
   return {
     type: expense.type,
     description: expense.description,
     payment_choice: expense.paymentChoice || null,
     destination: expense.destination || null,
 
-    // À vista
-    cash_value: expense.cashValue ? parseFloat(expense.cashValue) : null,
+    cash_value: expense.cashValue ? parseToNumber(expense.cashValue) : 0,
     cash_due_date: expense.cashDueDate || null,
 
-    // Parcelado
     installments: expense.installments ? parseInt(expense.installments) : null,
-    installment_value: expense.installmentValue ? parseFloat(expense.installmentValue) : null,
+    installment_value: expense.installmentValue ? parseToNumber(expense.installmentValue) : 0,
     first_installment_date: expense.firstInstallmentDate || null,
 
-    // IPTU específico
-    garbage_tax_cash: expense.garbageTaxCash ? parseFloat(expense.garbageTaxCash) : null,
+    garbage_tax_cash: expense.garbageTaxCash ? parseToNumber(expense.garbageTaxCash) : 0,
     garbage_tax_installment: expense.garbageTaxInstallment
-      ? parseFloat(expense.garbageTaxInstallment)
-      : null,
+      ? parseToNumber(expense.garbageTaxInstallment)
+      : 0,
 
-    // IPVA específico
-    dpvat_value: expense.dpvatValue ? parseFloat(expense.dpvatValue) : null,
+    dpvat_value: expense.dpvatValue ? parseToNumber(expense.dpvatValue) : 0,
     dpvat_due_date: expense.dpvatDueDate || null,
-    licensing_value: expense.licensingValue ? parseFloat(expense.licensingValue) : null,
+    licensing_value: expense.licensingValue ? parseToNumber(expense.licensingValue) : 0,
     licensing_due_date: expense.licensingDueDate || null,
   };
 }
 
 /**
- * Converte dados do banco para frontend
+ * Converte banco → frontend
+ * 123.10 (DECIMAL) → 123.10 (number)
  */
 function fromDbFormat(dbExpense) {
-  const toFrontendValue = (dbValue) => {
-    if (dbValue === null || dbValue === undefined) return null;
-    return String(Math.round(dbValue * 100));
-  };
-
   return {
     id: dbExpense.id,
     type: dbExpense.type,
@@ -54,22 +45,22 @@ function fromDbFormat(dbExpense) {
     paymentChoice: dbExpense.payment_choice,
     destination: dbExpense.destination,
 
-    cashValue: toFrontendValue(dbExpense.cash_value),
+    cashValue: dbExpense.cash_value,
     cashDueDate: dbExpense.cash_due_date,
 
     installments: dbExpense.installments,
-    installmentValue: toFrontendValue(dbExpense.installment_value),
+    installmentValue: dbExpense.installment_value,
     firstInstallmentDate: dbExpense.first_installment_date,
 
-    garbageTaxCash: toFrontendValue(dbExpense.garbage_tax_cash),
-    garbageTaxInstallment: toFrontendValue(dbExpense.garbage_tax_installment),
+    garbageTaxCash: dbExpense.garbage_tax_cash,
+    garbageTaxInstallment: dbExpense.garbage_tax_installment,
 
-    dpvatValue: toFrontendValue(dbExpense.dpvat_value),
+    dpvatValue: dbExpense.dpvat_value,
     dpvatDueDate: dbExpense.dpvat_due_date,
-    licensingValue: toFrontendValue(dbExpense.licensing_value),
+    licensingValue: dbExpense.licensing_value,
     licensingDueDate: dbExpense.licensing_due_date,
 
-    value: toFrontendValue(dbExpense.cash_value || dbExpense.installment_value),
+    value: dbExpense.cash_value || dbExpense.installment_value,
     dueDate: dbExpense.cash_due_date || dbExpense.first_installment_date,
 
     createdAt: dbExpense.created_at,
@@ -77,8 +68,17 @@ function fromDbFormat(dbExpense) {
   };
 }
 
+function parseToNumber(value) {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  const cleaned = String(value).replace(/[^\d,.]/g, '');
+  const normalized = cleaned.replace(',', '.');
+  const num = parseFloat(normalized);
+  return isNaN(num) ? 0 : num;
+}
+
 /**
- * Carrega planejamento de um ano específico
+ * Carrega planejamento do ano
  */
 export async function loadYearPlan(userId, year) {
   try {
@@ -90,11 +90,10 @@ export async function loadYearPlan(userId, year) {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
     return (data || []).map(fromDbFormat);
   } catch (error) {
-    console.error('Erro ao carregar planejamento:', error);
-    throw new Error('Falha ao carregar planejamento. Tente novamente.');
+    console.error('Erro ao carregar:', error);
+    throw new Error('Falha ao carregar planejamento');
   }
 }
 
@@ -103,7 +102,7 @@ export async function loadYearPlan(userId, year) {
  */
 async function cleanOldYears(userId, currentYear) {
   try {
-    const minYearAllowed = currentYear - 5;
+    const minYearAllowed = currentYear - (YEARS_TO_RETAIN - 1);
 
     const { error } = await supabase
       .from('decisions')
@@ -113,16 +112,15 @@ async function cleanOldYears(userId, currentYear) {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Erro ao limpar anos antigos:', error);
+    console.error('Erro ao limpar anos:', error);
   }
 }
 
 /**
- * Salva planejamento usando UPSERT incremental
+ * Salva planejamento
  */
 export async function saveYearPlan(userId, year, expenses) {
   try {
-    // 1. Busca despesas existentes
     const { data: existingExpenses, error: fetchError } = await supabase
       .from('decisions')
       .select('id')
@@ -134,80 +132,73 @@ export async function saveYearPlan(userId, year, expenses) {
     const existingIds = new Set((existingExpenses || []).map((e) => e.id));
     const currentIds = new Set(expenses.filter((e) => e.id && e.id.includes('-')).map((e) => e.id));
 
-    // 2. Separa em INSERT, UPDATE, DELETE
     const toInsert = [];
     const toUpdate = [];
 
     expenses.forEach((expense) => {
+      const dbData = toDbFormat(expense);
       const isUUID = expense.id && expense.id.includes('-');
 
       if (isUUID && existingIds.has(expense.id)) {
-        // UPDATE: Envia TODOS os campos para satisfazer constraints
-        toUpdate.push({
-          id: expense.id,
-          user_id: userId,
-          year,
-          ...toDbFormat(expense),
-        });
+        toUpdate.push({ id: expense.id, user_id: userId, year, ...dbData });
       } else {
-        // INSERT
-        toInsert.push({
-          user_id: userId,
-          year,
-          ...toDbFormat(expense),
-        });
+        toInsert.push({ user_id: userId, year, ...dbData });
       }
     });
 
     const toDelete = [...existingIds].filter((id) => !currentIds.has(id));
-
-    // 3. Executa operações
     const promises = [];
 
-    // INSERT
     if (toInsert.length > 0) {
-      promises.push(supabase.from('decisions').insert(toInsert));
+      promises.push(
+        supabase
+          .from('decisions')
+          .insert(toInsert)
+          .then((res) => {
+            if (res.error) console.error('❌ INSERT:', res.error);
+            return res;
+          }),
+      );
     }
 
-    // UPDATE - Um por vez para melhor controle de erros
     if (toUpdate.length > 0) {
       toUpdate.forEach((expense) => {
-        // ⚠️ Remove campos read-only antes do UPDATE
         const { id, user_id, created_at, updated_at, ...updateData } = expense;
-
         promises.push(
-          supabase.from('decisions').update(updateData).eq('id', id).eq('user_id', user_id),
+          supabase
+            .from('decisions')
+            .update(updateData)
+            .eq('id', id)
+            .eq('user_id', user_id)
+            .then((res) => {
+              if (res.error) console.error('❌ UPDATE:', res.error);
+              return res;
+            }),
         );
       });
     }
 
-    // DELETE
     if (toDelete.length > 0) {
       promises.push(supabase.from('decisions').delete().eq('user_id', userId).in('id', toDelete));
     }
 
-    // Aguarda todas as operações
     const results = await Promise.all(promises);
-
-    // Verifica erros
     const errors = results.filter((r) => r.error);
+
     if (errors.length > 0) {
-      console.error('Erros ao salvar:', errors);
-      throw new Error('Falha ao salvar algumas despesas');
+      throw new Error(`Falha ao salvar ${errors.length} despesa(s)`);
     }
 
-    // 4. Limpa anos antigos
     await cleanOldYears(userId, year);
-
     return { success: true };
   } catch (error) {
-    console.error('Erro ao salvar planejamento:', error);
-    throw new Error('Falha ao salvar planejamento. Verifique os dados e tente novamente.');
+    console.error('Erro ao salvar:', error);
+    throw error;
   }
 }
 
 /**
- * Retorna lista de anos com despesas
+ * Anos disponíveis
  */
 export async function getAvailableYears(userId) {
   try {
@@ -218,18 +209,13 @@ export async function getAvailableYears(userId) {
       .order('year', { ascending: false });
 
     if (error) throw error;
-
-    const uniqueYears = [...new Set(data?.map((d) => d.year) || [])];
-    return uniqueYears;
+    return [...new Set(data?.map((d) => d.year) || [])];
   } catch (error) {
     console.error('Erro ao buscar anos:', error);
     return [];
   }
 }
 
-/**
- * Deleta uma despesa específica
- */
 export async function deleteExpense(userId, expenseId) {
   try {
     const { error } = await supabase
@@ -239,10 +225,9 @@ export async function deleteExpense(userId, expenseId) {
       .eq('id', expenseId);
 
     if (error) throw error;
-
     return { success: true };
   } catch (error) {
-    console.error('Erro ao deletar despesa:', error);
-    throw new Error('Falha ao deletar despesa. Tente novamente.');
+    console.error('Erro ao deletar:', error);
+    throw new Error('Falha ao deletar despesa');
   }
 }
