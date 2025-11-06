@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, ChevronDown, Check, Edit2, Trash2, Calendar } from 'lucide-react';
+import { Plus, ChevronDown, Check, Edit2, Trash2, Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import IPTUModal from '@/components/modals/IptuModal';
 import IPVAModal from '@/components/modals/IPVAModal';
@@ -28,6 +28,7 @@ export default function DecisionPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [availableYears, setAvailableYears] = useState([currentYear]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChangingYear, setIsChangingYear] = useState(false);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isIPTUModalOpen, setIsIPTUModalOpen] = useState(false);
@@ -85,7 +86,13 @@ export default function DecisionPage() {
   const loadPlan = async () => {
     if (!userId) return;
 
-    setIsLoading(true);
+    // ✅ Define qual loading usar
+    if (isLoading) {
+      setIsLoading(true);
+    } else {
+      setIsChangingYear(true);
+    }
+
     try {
       const data = await loadYearPlan(userId, selectedYear);
       setExpenses(data);
@@ -96,7 +103,14 @@ export default function DecisionPage() {
       setExpenses([]);
     } finally {
       setIsLoading(false);
+      setIsChangingYear(false);
     }
+  };
+
+  // ✅ Handler para trocar ano
+  const handleYearChange = (newYear) => {
+    if (hasUnsavedChanges) return;
+    setSelectedYear(newYear);
   };
 
   const openModal = (type) => {
@@ -393,7 +407,7 @@ export default function DecisionPage() {
           onSave={handleSavePlanning}
           saveLoading={isSaving}
           selectedYear={selectedYear}
-          onYearChange={setSelectedYear}
+          onYearChange={handleYearChange}
         />
 
         <main className="container mx-auto px-4 py-8">
@@ -460,14 +474,33 @@ export default function DecisionPage() {
             </div>
           )}
 
-          {isLoading ? (
+          {/* ✅ LOADING AO TROCAR ANO */}
+          {isChangingYear && (
+            <div className="rounded-lg border border-blue-600/50 bg-blue-900/20 p-8 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                <div>
+                  <p className="text-lg font-semibold text-blue-300">
+                    Carregando {selectedYear}...
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">Buscando despesas cadastradas</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ✅ LOADING INICIAL */}
+          {isLoading && !isChangingYear && (
             <div className="rounded-lg border border-gray-600 bg-gray-800/50 p-12 text-center">
               <div className="flex flex-col items-center gap-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
                 <p className="text-gray-400">Carregando despesas...</p>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* ✅ CONTEÚDO (só exibe quando não está carregando) */}
+          {!isLoading && !isChangingYear && (
             <div className="space-y-4">
               {expenses.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-600 bg-gray-800/50 p-12 text-center">

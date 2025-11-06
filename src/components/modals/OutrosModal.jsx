@@ -24,7 +24,6 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
     if (!isOpen) return;
 
     if (editData) {
-      // ✅ CORRIGIDO: Formata valores ao carregar do banco
       setForm({
         description: editData.description,
         value: editData.value ? formatMoney(editData.value) : '',
@@ -73,8 +72,10 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
         case 'description':
           return value.trim().length > 0;
         case 'value':
-          return typeof value === 'string' && (value.startsWith('R$') || value.length >= 0);
+          // ✅ CORREÇÃO: Aceita qualquer valor >= 0
+          return typeof value === 'string' && value.length > 0;
         case 'dueDate':
+          // ✅ CORREÇÃO: Data opcional quando valor = 0
           return isDateDisabled || value.length > 0;
         case 'installments':
           return parseInt(value) >= 1;
@@ -85,11 +86,12 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
     [touched, isDateDisabled],
   );
 
+  // ✅ CORREÇÃO: Validação simplificada e correta
   const isFormValid =
-    form.description.trim() &&
-    (form.value.startsWith('R$') || form.value.length >= 0) &&
-    form.installments >= 1 &&
-    (isDateDisabled || form.dueDate);
+    form.description.trim().length > 0 &&
+    form.value.length > 0 &&
+    parseInt(form.installments) >= 1 &&
+    (isDateDisabled || form.dueDate.length > 0);
 
   const total = isParcelado
     ? parseToNumber(form.value) * parseInt(form.installments)
@@ -175,7 +177,7 @@ export default function OutrosModal({ isOpen, onClose, onSave, year, editData = 
               value={form.description}
               onChange={(e) => updateField('description', e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
-              placeholder='Ex: Contas ou Compras'
+              placeholder="Ex: Contas ou Compras"
               className={INPUT_CLASS}
               disabled={saving}
               autoFocus
