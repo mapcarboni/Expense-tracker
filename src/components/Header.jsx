@@ -116,7 +116,7 @@ export function Header({
         </div>
 
         {/* Right: Save Button + Menu */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* ✅ Seção de Seleção de Ano (apenas na rota /decision) */}
           {pathname === '/decision' && selectedYear && onYearChange && (
             <div className="relative">
@@ -171,7 +171,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-4 top-14 w-65 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
+                  className="absolute right-4 top-14 w-66 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
                       const RouteIcon = route.icon;
