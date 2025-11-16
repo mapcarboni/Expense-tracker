@@ -94,12 +94,12 @@ export async function loadYearPlan(userId, year) {
       .select('*')
       .eq('user_id', userId)
       .eq('year', year)
-      .order('expense_type', { ascending: true })
+      .order('type', { ascending: true })
       .order('description', { ascending: true });
 
     console.log(data);
     console.log(error);
-    
+
 
     if (error) throw error;
 

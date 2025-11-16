@@ -172,7 +172,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-4 top-14 w-70 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
+                  className="absolute right-4 top-14 w-68 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
                       const RouteIcon = route.icon;
