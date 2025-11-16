@@ -106,7 +106,7 @@ export function Header({
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
         {/* Left: Logo + Title */}
         <div className="flex items-center gap-3">
-          <Icon className="h-7 w-7 text-green-500 transition-transform duration-200 hover:scale-135" />
+          <Icon className="h-7 w-7 text-green-500 transition-transform duration-200 hover:scale-150" />
           <div>
             <h1 className="text-lg font-bold text-white">{currentRoute.label}</h1>
             {currentRoute.description && (
@@ -172,7 +172,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-4 top-14 w-72 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
+                  className="absolute right-4 top-14 w-70 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
                       const RouteIcon = route.icon;
