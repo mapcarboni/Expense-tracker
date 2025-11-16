@@ -115,30 +115,29 @@ export function Header({
           </div>
         </div>
 
-        {/* Center: Year Dropdown (only on /decision) */}
-        {pathname === '/decision' && selectedYear && onYearChange && (
-          <div className="relative">
-            <select
-              value={selectedYear}
-              onChange={(e) => handleYearChange(Number(e.target.value))}
-              disabled={yearsLoading || hasUnsavedChanges}
-              className="appearance-none rounded-lg border border-gray-700 bg-gray-800 pl-4 pr-10 py-2.5 text-white hover:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]">
-              {yearsLoading ? (
-                <option>Carregando...</option>
-              ) : (
-                years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))
-              )}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-          </div>
-        )}
-
         {/* Right: Save Button + Menu */}
         <div className="flex items-center gap-3">
+          {/* ✅ Seção de Seleção de Ano (apenas na rota /decision) */}
+          {pathname === '/decision' && selectedYear && onYearChange && (
+            <div className="relative">
+              <select
+                value={selectedYear}
+                onChange={(e) => handleYearChange(Number(e.target.value))}
+                disabled={yearsLoading || hasUnsavedChanges}
+                className="appearance-none rounded-lg border border-gray-700 bg-gray-800 pl-4 pr-10 py-2.5 text-white hover:border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]">
+                {yearsLoading ? (
+                  <option>Carregando...</option>
+                ) : (
+                  years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))
+                )}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
+          )}
           {/* ✅ Botão Salvar (visível quando há mudanças) */}
           {hasUnsavedChanges && onSave && (
             <button
@@ -172,7 +171,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-4 top-14 w-66 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
+                  className="absolute right-4 top-14 w-65 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
                       const RouteIcon = route.icon;
@@ -188,7 +187,7 @@ export function Header({
                               ? 'bg-green-600 text-white'
                               : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                           }`}>
-                          <RouteIcon className="h-5 w-5 transition-transform duration-200 hover:scale-130" />
+                          <RouteIcon className="h-5 w-5 transition-transform duration-200 hover:scale-140" />
                           <span className="font-medium">{route.label}</span>
                         </Link>
                       );
