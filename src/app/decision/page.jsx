@@ -510,13 +510,7 @@ export default function DecisionPage() {
                   </p>
                 </div>
               ) : (
-                expenses
-                  .sort((a, b) => {
-                    const tipoOrden = a.tipo.localeCompare(b.tipo);
-                    if (tipoOrden !== 0) return tipoOrden;
-                    return a.descricao.localeCompare(b.descricao);
-                  })
-                  .map(renderExpenseCard)
+                (expenses || []).map(renderExpenseCard)
               )}
             </div>
           )}
