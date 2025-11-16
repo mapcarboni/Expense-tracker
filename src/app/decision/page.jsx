@@ -510,7 +510,9 @@ export default function DecisionPage() {
                   </p>
                 </div>
               ) : (
-                (expenses || []).map(renderExpenseCard)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  (expenses || []).map(renderExpenseCard)
+                </div>
               )}
             </div>
           )}

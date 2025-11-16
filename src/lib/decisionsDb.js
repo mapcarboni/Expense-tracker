@@ -97,10 +97,6 @@ export async function loadYearPlan(userId, year) {
       .order('type', { ascending: true })
       .order('description', { ascending: true });
 
-    console.log(data);
-    console.log(error);
-
-
     if (error) throw error;
 
     return (data || []).map(fromDbFormat);

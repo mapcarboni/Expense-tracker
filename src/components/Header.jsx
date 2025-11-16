@@ -172,7 +172,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-4 top-14 w-68 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
+                  className="absolute right-4 top-14 w-64 rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
                       const RouteIcon = route.icon;
@@ -188,7 +188,7 @@ export function Header({
                               ? 'bg-green-600 text-white'
                               : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                           }`}>
-                          <RouteIcon className="h-5 w-5" />
+                          <RouteIcon className="h-5 w-5 transition-transform duration-200 hover:scale-125" />
                           <span className="font-medium">{route.label}</span>
                         </Link>
                       );
