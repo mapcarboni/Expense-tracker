@@ -177,7 +177,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-10 top-16 w-66 rounded-lg
+                  className="absolute right-5 top-15 w-66 rounded-lg
                              border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {
