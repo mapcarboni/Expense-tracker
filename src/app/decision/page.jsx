@@ -225,42 +225,44 @@ export default function DecisionPage() {
     setEditingExpense(null);
   };
 
-  const getExpenseDetails = (expense) => {
-    if (!expense.paymentChoice) return { value: 0, date: '' };
+const getExpenseDetails = (expense) => {
+  if (!expense.paymentChoice && !expense.payment_choice) return { value: 0, date: '' };
 
-    const isCash = expense.paymentChoice === 'cash';
-    let value = 0;
+  const isCash = (expense.paymentChoice || expense.payment_choice) === 'cash';
+  let value = 0;
 
-    switch (expense.type) {
-      case 'IPTU':
-        if (isCash) {
-          value = parseToNumber(expense.cashValue) + parseToNumber(expense.garbageTaxCash || 0);
-        } else {
-          const perMonth =
-            parseToNumber(expense.installmentValue) +
-            parseToNumber(expense.garbageTaxInstallment || 0);
-          value = perMonth * (expense.installments || 1);
-        }
-        break;
-      case 'OUTROS':
-        value = parseToNumber(expense.value) * (isCash ? 1 : expense.installments || 1);
-        break;
-      default:
-        value = isCash
-          ? parseToNumber(expense.cashValue)
-          : parseToNumber(expense.installmentValue) * (expense.installments || 1);
-    }
+  switch (expense.type) {
+    case 'IPTU':
+      if (isCash) {
+        value =
+          parseToNumber(expense.cashValue || expense.cash_value) +
+          parseToNumber(expense.garbageTaxCash || expense.garbage_tax_cash || 0);
+      } else {
+        const perMonth =
+          parseToNumber(expense.installmentValue || expense.installment_value) +
+          parseToNumber(expense.garbageTaxInstallment || expense.garbage_tax_installment || 0);
+        value = perMonth * (expense.installments || 1);
+      }
+      break;
+    case 'OUTROS':
+      value = isCash
+        ? parseToNumber(expense.cashValue || expense.cash_value)
+        : parseToNumber(expense.installmentValue || expense.installment_value) *
+          (expense.installments || 1);
+      break;
+    default:
+      value = isCash
+        ? parseToNumber(expense.cashValue || expense.cash_value)
+        : parseToNumber(expense.installmentValue || expense.installment_value) *
+          (expense.installments || 1);
+  }
 
-    const date = isCash
-      ? expense.type === 'OUTROS'
-        ? expense.dueDate
-        : expense.cashDueDate
-      : expense.type === 'OUTROS'
-      ? expense.dueDate
-      : expense.firstInstallmentDate;
+  const date = isCash
+    ? expense.cashDueDate || expense.cash_due_date
+    : expense.firstInstallmentDate || expense.first_installment_date;
 
-    return { value, date };
-  };
+  return { value, date };
+};
 
   const renderExpenseCard = (expense) => {
     const { value, date } = getExpenseDetails(expense);
