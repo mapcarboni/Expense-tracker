@@ -113,7 +113,7 @@ export function Header({
         {/* Right */}
         <div className="flex items-center gap-3 sm:gap-4">
           {/* Ano */}
-          { selectedYear && onYearChange && (
+          {selectedYear && onYearChange && (
             <div className="relative">
               <select
                 value={selectedYear}
@@ -177,7 +177,7 @@ export function Header({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-0 top-14 w-[90vw] sm:w-66 rounded-lg
+                  className="absolute right-10 top-16 w-66 rounded-lg
                              border border-gray-700 bg-gray-800 shadow-xl">
                   <nav className="p-2">
                     {Object.entries(ROUTES).map(([path, route]) => {

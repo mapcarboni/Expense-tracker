@@ -374,7 +374,7 @@ export default function DecisionPage() {
             </div>
           </div>
 
-          <div className="flex gap-1">
+          <div className="flex gap-0.5">
             <button
               onClick={() => handleChangeDecision(expense)}
               className="rounded p-1.5 text-gray-400 hover:bg-blue-600 hover:text-white transition-colors"
@@ -425,7 +425,7 @@ export default function DecisionPage() {
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 disabled={hasUnsavedChanges}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 font-semibold text-white transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base font-semibold text-white transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Plus className="h-5 w-5" />
                 Nova Despesa
                 <ChevronDown className="h-4 w-4" />
@@ -511,7 +511,7 @@ export default function DecisionPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(expenses || []).map(renderExpenseCard)}
+                  {(expenses || []).map(renderExpenseCard)}
                 </div>
               )}
             </div>
