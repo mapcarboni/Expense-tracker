@@ -424,7 +424,6 @@ export default function DecisionPage() {
 
             {extraTaxes.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-700">
-                <p className="text-xs font-semibold text-gray-400 mb-2">Taxas Adicionais:</p>
                 <div className="space-y-1">
                   {extraTaxes.map((tax, idx) => (
                     <div key={idx} className="flex items-center justify-between text-xs">
