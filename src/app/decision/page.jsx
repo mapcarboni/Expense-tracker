@@ -86,7 +86,6 @@ export default function DecisionPage() {
   const loadPlan = async () => {
     if (!userId) return;
 
-    // ✅ Define qual loading usar
     if (isLoading) {
       setIsLoading(true);
     } else {
@@ -107,7 +106,6 @@ export default function DecisionPage() {
     }
   };
 
-  // ✅ Handler para trocar ano
   const handleYearChange = (newYear) => {
     if (hasUnsavedChanges) return;
     setSelectedYear(newYear);
@@ -225,47 +223,98 @@ export default function DecisionPage() {
     setEditingExpense(null);
   };
 
-const getExpenseDetails = (expense) => {
-  if (!expense.paymentChoice && !expense.payment_choice) return { value: 0, date: '' };
+  // ✅ HELPER: Pega valor (suporta snake_case e camelCase)
+  const getValue = (obj, key) =>
+    parseToNumber(obj[key] || obj[key.replace(/([A-Z])/g, '_$1').toLowerCase()] || 0);
+  const getDate = (obj, key) => obj[key] || obj[key.replace(/([A-Z])/g, '_$1').toLowerCase()] || '';
 
-  const isCash = (expense.paymentChoice || expense.payment_choice) === 'cash';
-  let value = 0;
+  // ✅ FUNÇÃO SIMPLIFICADA
+  const getExpenseDetails = (expense) => {
+    const choice = expense.paymentChoice || expense.payment_choice;
+    if (!choice) return { value: 0, date: '', displayText: '' };
 
-  switch (expense.type) {
-    case 'IPTU':
-      if (isCash) {
-        value =
-          parseToNumber(expense.cashValue || expense.cash_value) +
-          parseToNumber(expense.garbageTaxCash || expense.garbage_tax_cash || 0);
-      } else {
-        const perMonth =
-          parseToNumber(expense.installmentValue || expense.installment_value) +
-          parseToNumber(expense.garbageTaxInstallment || expense.garbage_tax_installment || 0);
-        value = perMonth * (expense.installments || 1);
+    const isCash = choice === 'cash';
+    const installments = expense.installments || 1;
+
+    let value = 0;
+    let displayText = '';
+    let date = '';
+
+    switch (expense.type) {
+      case 'IPTU': {
+        if (isCash) {
+          const iptu = getValue(expense, 'cashValue');
+          const lixo = getValue(expense, 'garbageTaxCash');
+          value = iptu + lixo;
+          displayText = `À vista (${formatMoney(iptu)} + ${formatMoney(lixo)})`;
+          date = getDate(expense, 'cashDueDate');
+        } else {
+          const parcela = getValue(expense, 'installmentValue');
+          const lixo = getValue(expense, 'garbageTaxInstallment');
+          value = parcela * installments + lixo;
+          displayText = `${installments}x de ${formatMoney(parcela)} (+${formatMoney(lixo)})`;
+          date = getDate(expense, 'firstInstallmentDate');
+        }
+        break;
       }
-      break;
-    case 'OUTROS':
-      value = isCash
-        ? parseToNumber(expense.cashValue || expense.cash_value)
-        : parseToNumber(expense.installmentValue || expense.installment_value) *
-          (expense.installments || 1);
-      break;
-    default:
-      value = isCash
-        ? parseToNumber(expense.cashValue || expense.cash_value)
-        : parseToNumber(expense.installmentValue || expense.installment_value) *
-          (expense.installments || 1);
-  }
 
-  const date = isCash
-    ? expense.cashDueDate || expense.cash_due_date
-    : expense.firstInstallmentDate || expense.first_installment_date;
+      case 'IPVA':
+      case 'SEGURO': {
+        if (isCash) {
+          value = getValue(expense, 'cashValue');
+          displayText = `À vista (${formatMoney(value)})`;
+          date = getDate(expense, 'cashDueDate');
+        } else {
+          const parcela = getValue(expense, 'installmentValue');
+          value = parcela * installments;
+          displayText = `${installments}x de ${formatMoney(parcela)} (${formatMoney(value)})`;
+          date = getDate(expense, 'firstInstallmentDate');
+        }
+        break;
+      }
 
-  return { value, date };
-};
+      case 'OUTROS': {
+        const parcela =
+          getValue(expense, 'installmentValue') ||
+          getValue(expense, 'value') ||
+          getValue(expense, 'cashValue');
+        value = parcela * installments;
+        displayText = `${installments}x de ${formatMoney(parcela)} (${formatMoney(value)})`;
+        date = getDate(expense, 'firstInstallmentDate') || getDate(expense, 'dueDate');
+        break;
+      }
+    }
+
+    return { value, date, displayText };
+  };
+
+  // ✅ TAXAS EXTRAS IPVA (simplificado)
+  const getIPVAExtraTaxes = (expense) => {
+    const taxes = [];
+    const dpvat = getValue(expense, 'dpvatValue');
+    const licensing = getValue(expense, 'licensingValue');
+
+    if (dpvat >= 0) {
+      taxes.push({
+        label: 'DPVAT',
+        value: dpvat,
+        date: getDate(expense, 'dpvatDueDate'),
+      });
+    }
+
+    if (licensing >= 0) {
+      taxes.push({
+        label: 'Licenciamento',
+        value: licensing,
+        date: getDate(expense, 'licensingDueDate'),
+      });
+    }
+
+    return taxes;
+  };
 
   const renderExpenseCard = (expense) => {
-    const { value, date } = getExpenseDetails(expense);
+    const { value, date, displayText } = getExpenseDetails(expense);
 
     const destinationLabels = {
       fixed_first: 'Contas Fixas - 1ª Quinzena',
@@ -281,7 +330,11 @@ const getExpenseDetails = (expense) => {
       OUTROS: '📋',
     };
 
-    if (!expense.paymentChoice || !expense.destination) {
+    const choice = expense.paymentChoice || expense.payment_choice;
+    const dest = expense.destination;
+
+    // Card sem decisão
+    if (!choice || !dest) {
       return (
         <div
           key={expense.id}
@@ -327,12 +380,8 @@ const getExpenseDetails = (expense) => {
       );
     }
 
-    const isInstallment = expense.paymentChoice === 'installment';
-    const installmentInfo = isInstallment
-      ? `${expense.installments}x de ${formatMoney(
-          String(parseToNumber(expense.installmentValue)),
-        )}`
-      : 'À vista';
+    // Card com decisão
+    const extraTaxes = expense.type === 'IPVA' ? getIPVAExtraTaxes(expense) : [];
 
     return (
       <div
@@ -357,7 +406,7 @@ const getExpenseDetails = (expense) => {
               </div>
               <div>
                 <span className="text-gray-400">Pagamento:</span>
-                <span className="ml-2 font-medium text-white">{installmentInfo}</span>
+                <span className="ml-2 font-medium text-white">{displayText}</span>
               </div>
               {date && (
                 <div className="flex items-center gap-1.5">
@@ -369,11 +418,32 @@ const getExpenseDetails = (expense) => {
               )}
               <div>
                 <span className="text-gray-400">Destino:</span>
-                <span className="ml-2 text-purple-400 font-medium">
-                  {destinationLabels[expense.destination]}
-                </span>
+                <span className="ml-2 text-purple-400 font-medium">{destinationLabels[dest]}</span>
               </div>
             </div>
+
+            {extraTaxes.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-700">
+                <p className="text-xs font-semibold text-gray-400 mb-2">Taxas Adicionais:</p>
+                <div className="space-y-1">
+                  {extraTaxes.map((tax, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{tax.label}:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-blue-400">
+                          {formatMoney(tax.value)}
+                        </span>
+                        {tax.date && (
+                          <span className="text-gray-500">
+                            • {new Date(tax.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-0.5">
@@ -476,7 +546,6 @@ const getExpenseDetails = (expense) => {
             </div>
           )}
 
-          {/* ✅ LOADING AO TROCAR ANO */}
           {isChangingYear && (
             <div className="rounded-lg border border-blue-600/50 bg-blue-900/20 p-8 text-center">
               <div className="flex flex-col items-center gap-4">
@@ -491,7 +560,6 @@ const getExpenseDetails = (expense) => {
             </div>
           )}
 
-          {/* ✅ LOADING INICIAL */}
           {isLoading && !isChangingYear && (
             <div className="rounded-lg border border-gray-600 bg-gray-800/50 p-12 text-center">
               <div className="flex flex-col items-center gap-4">
@@ -501,7 +569,6 @@ const getExpenseDetails = (expense) => {
             </div>
           )}
 
-          {/* ✅ CONTEÚDO (só exibe quando não está carregando) */}
           {!isLoading && !isChangingYear && (
             <div className="space-y-4">
               {expenses.length === 0 ? (
@@ -513,7 +580,7 @@ const getExpenseDetails = (expense) => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(expenses || []).map(renderExpenseCard)}
+                  {expenses.map(renderExpenseCard)}
                 </div>
               )}
             </div>
@@ -581,7 +648,7 @@ const getExpenseDetails = (expense) => {
           <DecisionModal
             isOpen={isDecisionModalOpen}
             onClose={() => {
-              setIsDecisionModalOpen(false);
+              setIsDecisionModalModal(false);
               setDecidingExpense(null);
             }}
             expense={decidingExpense}
