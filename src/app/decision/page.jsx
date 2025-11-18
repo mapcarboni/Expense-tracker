@@ -647,7 +647,7 @@ export default function DecisionPage() {
           <DecisionModal
             isOpen={isDecisionModalOpen}
             onClose={() => {
-              setIsDecisionModalModal(false);
+              setIsDecisionModalOpen(false);
               setDecidingExpense(null);
             }}
             expense={decidingExpense}
