@@ -148,6 +148,8 @@ export default function DecisionPage() {
       prev.map((e) => (e.id === expenseWithDecision.id ? expenseWithDecision : e)),
     );
     setHasUnsavedChanges(true);
+    setIsDecisionModalOpen(false);
+    setDecidingExpense(null);
     toast.success('Decisão confirmada!');
   };
 
