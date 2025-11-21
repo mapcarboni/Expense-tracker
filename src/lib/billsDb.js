@@ -73,6 +73,26 @@ export async function getAvailableMonths(userId, year) {
   }
 }
 
+export async function getAvailableYears(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('bills')
+      .select('year')
+      .eq('user_id', userId)
+      .order('year', { ascending: false });
+
+    if (error) throw error;
+
+    const currentYear = new Date().getFullYear();
+    const yearsSet = new Set([currentYear, ...(data?.map((d) => d.year) || [])]);
+
+    return [...yearsSet].sort((a, b) => b - a);
+  } catch (error) {
+    console.error('Erro ao buscar anos:', error);
+    return [new Date().getFullYear()];
+  }
+}
+
 // ==================== BALANCE ====================
 
 export async function getBalance(userId, year, month) {
@@ -86,19 +106,19 @@ export async function getBalance(userId, year, month) {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data ? fromDbFormat(data) : { balance: 0 };
+    return data ? fromDbFormat(data) : { balanceB: 0, balanceI: 0 };
   } catch (error) {
     console.error('Erro ao buscar saldo:', error);
     throw error;
   }
 }
 
-export async function updateBalance(userId, year, month, newBalance) {
+export async function updateBalance(userId, year, month, balanceB, balanceI) {
   try {
     const { error } = await supabase
       .from('bank_balance')
       .upsert(
-        { user_id: userId, year, month, balance: newBalance },
+        { user_id: userId, year, month, balance_b: balanceB, balance_i: balanceI },
         { onConflict: 'user_id,year,month' },
       );
 
@@ -249,7 +269,6 @@ function generateBillsFromDecision(decision) {
       }
     }
 
-    // DPVAT
     if (decision.dpvatValue && parseToNumber(decision.dpvatValue) > 0) {
       const dpvatDate = new Date(decision.dpvatDueDate);
       bills.push({
@@ -265,7 +284,6 @@ function generateBillsFromDecision(decision) {
       });
     }
 
-    // Licenciamento
     if (decision.licensingValue && parseToNumber(decision.licensingValue) > 0) {
       const licensingDate = new Date(decision.licensingDueDate);
       bills.push({

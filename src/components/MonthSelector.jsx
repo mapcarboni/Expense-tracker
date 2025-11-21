@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRef, useEffect } from 'react';
 
 const MONTHS = [
   { value: 1, label: 'Jan' },
@@ -18,6 +19,17 @@ const MONTHS = [
 ];
 
 export function MonthSelector({ selectedMonth, onMonthChange, availableMonths, disabled = false }) {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current && selectedMonth) {
+      const selectedButton = scrollRef.current.querySelector(`[data-month="${selectedMonth}"]`);
+      if (selectedButton) {
+        selectedButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [selectedMonth]);
+
   if (!availableMonths || availableMonths.length === 0) {
     return (
       <div className="flex items-center justify-center py-4">
@@ -46,19 +58,24 @@ export function MonthSelector({ selectedMonth, onMonthChange, availableMonths, d
       <button
         onClick={handlePrevious}
         disabled={disabled || currentIndex <= 0}
-        className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+        className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        aria-label="Mês anterior">
         <ChevronLeft className="h-5 w-5" />
       </button>
 
-      <div className="flex gap-1 overflow-x-auto max-w-3xl">
+      <div
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto scroll-smooth scrollbar-hide max-w-xs sm:max-w-md md:max-w-3xl px-2"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {displayMonths.map((month) => (
           <button
             key={month.value}
+            data-month={month.value}
             onClick={() => onMonthChange(month.value)}
             disabled={disabled}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
               month.value === selectedMonth
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white scale-110'
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
             }`}>
             {month.label}
@@ -69,7 +86,8 @@ export function MonthSelector({ selectedMonth, onMonthChange, availableMonths, d
       <button
         onClick={handleNext}
         disabled={disabled || currentIndex >= displayMonths.length - 1}
-        className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+        className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        aria-label="Próximo mês">
         <ChevronRight className="h-5 w-5" />
       </button>
     </div>

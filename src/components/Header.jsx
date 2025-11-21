@@ -44,10 +44,13 @@ export function Header({
   const Icon = currentRoute.icon;
 
   useEffect(() => {
-    if (userId && pathname === '/decision') {
+    if (availableYears) {
+      setYears(availableYears);
+      setYearsLoading(false);
+    } else if (userId && pathname === '/decision') {
       fetchYears();
     }
-  }, [userId, pathname]);
+  }, [getAvailableYears, userId, pathname]);
 
   useEffect(() => {
     if (!menuOpen) return;
