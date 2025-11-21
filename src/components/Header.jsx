@@ -26,6 +26,7 @@ export function Header({
   saveLoading = false,
   selectedYear,
   onYearChange,
+  availableYears,
 }) {
   const { signOut, userId } = useAuth();
   const pathname = usePathname();
@@ -44,13 +45,15 @@ export function Header({
   const Icon = currentRoute.icon;
 
   useEffect(() => {
-    if (getAvailableYears) {
-      setYears(getAvailableYears);
+    if (availableYears && availableYears.length > 0) {
+      setYears(availableYears);
       setYearsLoading(false);
     } else if (userId && pathname === '/decision') {
       fetchYears();
+    } else {
+      setYearsLoading(false);
     }
-  }, [getAvailableYears, userId, pathname]);
+  }, [availableYears, userId, pathname]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -101,7 +104,6 @@ export function Header({
   return (
     <header className="sticky top-0 z-40 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
-        {/* Left: Logo + Title */}
         <div className="flex items-center gap-3">
           <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-green-500 transition-transform duration-200 hover:scale-150" />
 
@@ -113,9 +115,7 @@ export function Header({
           </div>
         </div>
 
-        {/* Right */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Ano */}
           {selectedYear && onYearChange && (
             <div className="relative">
               <select
@@ -144,7 +144,6 @@ export function Header({
             </div>
           )}
 
-          {/* Botão salvar */}
           {hasUnsavedChanges && onSave && (
             <button
               onClick={onSave}
@@ -167,7 +166,6 @@ export function Header({
             </button>
           )}
 
-          {/* Menu hamburguer */}
           {!hasUnsavedChanges && (
             <>
               <button
@@ -219,7 +217,6 @@ export function Header({
         </div>
       </div>
 
-      {/* Barra de aviso */}
       {hasUnsavedChanges && (
         <div className="border-t border-yellow-600/30 bg-yellow-900/10 px-3 py-1.5 sm:px-4 sm:py-2">
           <p className="text-center text-[11px] sm:text-sm text-yellow-300">
