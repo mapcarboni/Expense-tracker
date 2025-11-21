@@ -1,92 +1,10 @@
 import { supabase } from './supabase';
+import { toSnakeCase, toCamelCase, parseToNumber, toDbFormat, fromDbFormat } from './dbHelpers';
 
-// ===============================
-// CONFIGURAÇÃO
-// ===============================
-const YEARS_TO_RETAIN = 3; // Ex: 2025, 2024, 2023
+const YEARS_TO_RETAIN = 3;
 
-// ===============================
-// 🔄 Conversões camelCase ⇄ snake_case
-// ===============================
+// ==================== OPERAÇÕES PRINCIPAIS ====================
 
-/** front → banco */
-function toSnakeCase(obj) {
-  const newObj = {};
-  for (const key in obj) {
-    const snake = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-    newObj[snake] = obj[key];
-  }
-  return newObj;
-}
-
-/** banco → front */
-function toCamelCase(obj) {
-  const newObj = {};
-  for (const key in obj) {
-    const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-    newObj[camel] = obj[key];
-  }
-  return newObj;
-}
-
-// ===============================
-// 🧮 Conversões específicas do módulo "decisions"
-// ===============================
-
-/** "R$ 1.234,56" → 1234.56 */
-function parseToNumber(value) {
-  if (typeof value === 'number') return value;
-  if (!value) return 0;
-  const cleaned = String(value).replace(/[^\d,.]/g, '');
-  const normalized = cleaned.replace(',', '.');
-  const num = parseFloat(normalized);
-  return isNaN(num) ? 0 : num;
-}
-
-/** front → banco (com números tratados e snake_case aplicado) */
-function toDbFormat(expense) {
-  const formatted = {
-    type: expense.type,
-    description: expense.description,
-    paymentChoice: expense.paymentChoice || null,
-    destination: expense.destination || null,
-
-    cashValue: parseToNumber(expense.cashValue),
-    cashDueDate: expense.cashDueDate || null,
-
-    installments: expense.installments ? parseInt(expense.installments) : null,
-    installmentValue: parseToNumber(expense.installmentValue),
-    firstInstallmentDate: expense.firstInstallmentDate || null,
-
-    garbageTaxCash: parseToNumber(expense.garbageTaxCash),
-    garbageTaxInstallment: parseToNumber(expense.garbageTaxInstallment),
-
-    dpvatValue: parseToNumber(expense.dpvatValue),
-    dpvatDueDate: expense.dpvatDueDate || null,
-
-    licensingValue: parseToNumber(expense.licensingValue),
-    licensingDueDate: expense.licensingDueDate || null,
-  };
-
-  return toSnakeCase(formatted);
-}
-
-/** banco → front (com camelCase restaurado e valores derivados) */
-function fromDbFormat(dbExpense) {
-  const camel = toCamelCase(dbExpense);
-
-  return {
-    ...camel,
-    value: camel.cashValue || camel.installmentValue,
-    dueDate: camel.cashDueDate || camel.firstInstallmentDate,
-  };
-}
-
-// ======================================================
-// 📌 OPERAÇÕES PRINCIPAIS
-// ======================================================
-
-/** Carrega planejamento */
 export async function loadYearPlan(userId, year) {
   try {
     const { data, error } = await supabase
@@ -106,27 +24,8 @@ export async function loadYearPlan(userId, year) {
   }
 }
 
-/** Limpa anos antigos */
-async function cleanOldYears(userId, currentYear) {
-  try {
-    const minYearAllowed = currentYear - (YEARS_TO_RETAIN - 1);
-
-    const { error } = await supabase
-      .from('decisions')
-      .delete()
-      .eq('user_id', userId)
-      .lt('year', minYearAllowed);
-
-    if (error) throw error;
-  } catch (error) {
-    console.error('Erro ao limpar anos antigos:', error);
-  }
-}
-
-/** Salvar planejamento */
 export async function saveYearPlan(userId, year, expenses) {
   try {
-    // Buscar despesas existentes
     const { data: existingExpenses, error: fetchError } = await supabase
       .from('decisions')
       .select('id')
@@ -141,9 +40,17 @@ export async function saveYearPlan(userId, year, expenses) {
     const toInsert = [];
     const toUpdate = [];
 
-    // Separar INSERTs e UPDATEs
+    const MONEY_FIELDS = [
+      'cashValue',
+      'installmentValue',
+      'garbageTaxCash',
+      'garbageTaxInstallment',
+      'dpvatValue',
+      'licensingValue',
+    ];
+
     expenses.forEach((expense) => {
-      const dbData = toDbFormat(expense);
+      const dbData = toDbFormat(expense, MONEY_FIELDS);
       const isUUID = expense.id && expense.id.includes('-');
 
       if (isUUID && existingIds.has(expense.id)) {
@@ -153,7 +60,6 @@ export async function saveYearPlan(userId, year, expenses) {
       }
     });
 
-    // Identificar DELETEs
     const toDelete = [...existingIds].filter((id) => !currentIds.has(id));
 
     const promises = [];
@@ -175,13 +81,12 @@ export async function saveYearPlan(userId, year, expenses) {
     }
 
     const results = await Promise.all(promises);
-
     const errors = results.filter((r) => r.error);
+
     if (errors.length > 0) {
       throw new Error(`Falha ao salvar ${errors.length} despesa(s)`);
     }
 
-    // Limpar anos antigos
     await cleanOldYears(userId, year);
 
     return { success: true };
@@ -191,7 +96,22 @@ export async function saveYearPlan(userId, year, expenses) {
   }
 }
 
-/** Buscar anos disponíveis */
+async function cleanOldYears(userId, currentYear) {
+  try {
+    const minYearAllowed = currentYear - (YEARS_TO_RETAIN - 1);
+
+    const { error } = await supabase
+      .from('decisions')
+      .delete()
+      .eq('user_id', userId)
+      .lt('year', minYearAllowed);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Erro ao limpar anos antigos:', error);
+  }
+}
+
 export async function getAvailableYears(userId) {
   try {
     const { data, error } = await supabase
@@ -209,7 +129,6 @@ export async function getAvailableYears(userId) {
   }
 }
 
-/** Deletar despesa */
 export async function deleteExpense(userId, expenseId) {
   try {
     const { error } = await supabase

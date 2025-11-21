@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Check, CreditCard, Calendar } from 'lucide-react';
-import { toNumber, formatMoney } from '@/utils/formatters';
+import { toNumber, formatMoney } from '@/lib/dbHelpers';
 import { DESTINATIONS } from '@/constants/app';
 
 export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {

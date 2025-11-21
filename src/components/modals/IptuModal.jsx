@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
-import { formatMoney, parseToNumber } from '@/utils/formatters';
+import { formatMoney, parseToNumber } from '@/lib/dbHelpers';
 import { useZeroValueDateHandler } from '@/hooks/useZeroValueDateHandler';
 import { INPUT_CLASS, INPUT_ERROR_CLASS, LABEL_CLASS } from '@/constants/app';
 

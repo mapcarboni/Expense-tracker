@@ -15,7 +15,7 @@ import DecisionModal from '@/components/modals/DecisionModal';
 import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 import { UnsavedChangesModal } from '@/components/UnsavedChangesModal';
 import { loadYearPlan, saveYearPlan, getAvailableYears } from '@/lib/decisionsDb';
-import { parseToNumber, formatMoney } from '@/utils/formatters';
+import { parseToNumber, formatMoney } from '@/lib/dbHelpers';
 
 export default function DecisionPage() {
   const { userId } = useAuth();
