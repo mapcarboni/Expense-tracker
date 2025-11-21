@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { parseToNumber } from '@/utils/formatters';
+import { parseToNumber } from '@/lib/dbHelpers';
 
 /**
  * Hook para gerenciar datas baseadas em valores monetários

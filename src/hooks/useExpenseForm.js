@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { formatMoney, parseToNumber } from '@/utils/formatters';
+import { formatMoney, parseToNumber } from '@/lib/dbHelpers';
 
 /**
  * Hook para gerenciar formulários de despesas

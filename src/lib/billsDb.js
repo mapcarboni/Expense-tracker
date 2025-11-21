@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { toSnakeCase, toCamelCase, toDbFormat, fromDbFormat, parseToNumber } from './dbHelpers';
+import { toSnakeCase, toDbFormat, fromDbFormat, parseToNumber } from './dbHelpers';
 
 // ==================== BILLS ====================
 
