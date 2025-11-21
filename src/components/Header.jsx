@@ -44,8 +44,8 @@ export function Header({
   const Icon = currentRoute.icon;
 
   useEffect(() => {
-    if (availableYears) {
-      setYears(availableYears);
+    if (getAvailableYears) {
+      setYears(getAvailableYears);
       setYearsLoading(false);
     } else if (userId && pathname === '/decision') {
       fetchYears();
