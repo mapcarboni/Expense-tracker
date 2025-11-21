@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Header } from '@/components/Header';
 import { MonthSelector } from '@/components/MonthSelector';
+import { SaldoBancario } from '@/components/bills/SaldoBancario';
 import { useAuth } from '@/contexts/AuthContext';
-import { loadMonthBills, getAvailableMonths } from '@/lib/billsDb';
+import { loadMonthBills, getAvailableMonths, getBalance } from '@/lib/billsDb';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -18,6 +19,13 @@ export default function BillsPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [bills, setBills] = useState([]);
+  const [balance, setBalance] = useState({ balanceB: 0, balanceI: 0 });
+  const [incomeData, setIncomeData] = useState({
+    salario: '',
+    adiantamento: '',
+    ferias: '',
+    decimoTerceiro: '',
+  });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,22 +38,18 @@ export default function BillsPage() {
 
   useEffect(() => {
     if (userId && selectedYear && selectedMonth) {
-      loadBills();
+      loadData();
     }
   }, [userId, selectedYear, selectedMonth]);
 
   const loadAvailableMonths = async () => {
     try {
       const months = await getAvailableMonths(userId, selectedYear);
-
-      // Adiciona mês atual e anteriores
       const allMonths = new Set(months);
-      for (let m = 1; m <= currentMonth; m++) {
-        if (selectedYear === currentYear) {
+
+      for (let m = 1; m <= 12; m++) {
+        if (selectedYear < currentYear || (selectedYear === currentYear && m <= currentMonth)) {
           allMonths.add(m);
-        } else if (selectedYear < currentYear) {
-          allMonths.add(m);
-          if (m === 12) break;
         }
       }
 
@@ -56,23 +60,46 @@ export default function BillsPage() {
     }
   };
 
-  const loadBills = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const data = await loadMonthBills(userId, selectedYear, selectedMonth);
-      setBills(data);
+      const [billsData, balanceData] = await Promise.all([
+        loadMonthBills(userId, selectedYear, selectedMonth),
+        getBalance(userId, selectedYear, selectedMonth),
+      ]);
+
+      setBills(billsData);
+      setBalance(balanceData);
+
+      // Carregar dados de renda dos bills
+      const salaryBill = billsData.find((b) => b.category === 'salary');
+      const advanceBill = billsData.find((b) => b.category === 'advance');
+      const vacationBill = billsData.find((b) => b.category === 'vacation');
+      const thirteenthBill = billsData.find((b) => b.category === 'thirteenth');
+
+      setIncomeData({
+        salario: salaryBill?.value || '',
+        adiantamento: advanceBill?.value || '',
+        ferias: vacationBill?.value || '',
+        decimoTerceiro: thirteenthBill?.value || '',
+      });
     } catch (error) {
-      console.error('Erro ao carregar bills:', error);
+      console.error('Erro ao carregar dados:', error);
       toast.error('Erro ao carregar contas');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleIncomeChange = (changes) => {
+    setIncomeData((prev) => ({ ...prev, ...changes }));
+    setHasUnsavedChanges(true);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Salvar bills aqui
+      // Salvar aqui
       toast.success('Contas salvas!');
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -95,7 +122,7 @@ export default function BillsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-950">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
         <Header
           hasUnsavedChanges={hasUnsavedChanges}
           onSave={handleSave}
@@ -104,9 +131,8 @@ export default function BillsPage() {
           onYearChange={handleYearChange}
         />
 
-        <main className="container mx-auto px-4">
+        <main className="container mx-auto px-4 py-8">
           <MonthSelector
-            selectedYear={selectedYear}
             selectedMonth={selectedMonth}
             onMonthChange={handleMonthChange}
             availableMonths={availableMonths}
@@ -118,37 +144,37 @@ export default function BillsPage() {
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
             </div>
           ) : (
-            <div className="py-6">
-              <h2 className="text-xl font-bold text-white mb-4">
-                Contas de {selectedMonth}/{selectedYear}
-              </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <SaldoBancario
+                balanceB={balance.balanceB}
+                balanceI={balance.balanceI}
+                salario={incomeData.salario}
+                adiantamento={incomeData.adiantamento}
+                ferias={incomeData.ferias}
+                decimoTerceiro={incomeData.decimoTerceiro}
+                month={selectedMonth}
+                onChange={handleIncomeChange}
+                disabled={hasUnsavedChanges}
+              />
 
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                {/* Componentes serão adicionados aqui */}
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-2">Saldo Bancário</h3>
-                  <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
-                </div>
+              <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+                <h3 className="text-white font-semibold mb-2">PIX/Transfer</h3>
+                <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
+              </div>
 
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-2">PIX/Transfer</h3>
-                  <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
-                </div>
+              <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+                <h3 className="text-white font-semibold mb-2">Contas Fixas</h3>
+                <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
+              </div>
 
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-2">Contas Fixas</h3>
-                  <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
-                </div>
+              <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+                <h3 className="text-white font-semibold mb-2">Cartão Marc</h3>
+                <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
+              </div>
 
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-2">Cartão Marc</h3>
-                  <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
-                </div>
-
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-2">Cartão Neca</h3>
-                  <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
-                </div>
+              <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+                <h3 className="text-white font-semibold mb-2">Cartão Neca</h3>
+                <p className="text-gray-400 text-sm">Em desenvolvimento...</p>
               </div>
             </div>
           )}
