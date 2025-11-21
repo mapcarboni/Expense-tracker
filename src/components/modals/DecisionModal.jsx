@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Check, CreditCard, Calendar } from 'lucide-react';
-import { toNumber, formatMoney } from '@/lib/dbHelpers';
+import { parseToNumber, formatMoney } from '@/lib/dbHelpers';
 import { DESTINATIONS } from '@/constants/app';
 
 export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
@@ -20,11 +20,11 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
     const getCashTotal = () => {
       switch (expense.type) {
         case 'IPTU':
-          return toNumber(expense.cashValue) + toNumber(expense.garbageTaxCash);
+          return parseToNumber(expense.cashValue) + parseToNumber(expense.garbageTaxCash);
         case 'OUTROS':
-          return expense.installments === 1 ? toNumber(expense.value) : 0;
+          return expense.installments === 1 ? parseToNumber(expense.value) : 0;
         default:
-          return toNumber(expense.cashValue);
+          return parseToNumber(expense.cashValue);
       }
     };
 
@@ -32,13 +32,13 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
       switch (expense.type) {
         case 'IPTU':
           return (
-            (toNumber(expense.installmentValue) + toNumber(expense.garbageTaxInstallment)) *
-            toNumber(expense.installments)
+            (parseToNumber(expense.installmentValue) + parseToNumber(expense.garbageTaxInstallment)) *
+            parseToNumber(expense.installments)
           );
         case 'OUTROS':
-          return toNumber(expense.value) * toNumber(expense.installments);
+          return parseToNumber(expense.value) * parseToNumber(expense.installments);
         default:
-          return toNumber(expense.installmentValue) * toNumber(expense.installments);
+          return parseToNumber(expense.installmentValue) * parseToNumber(expense.installments);
       }
     };
 
@@ -218,7 +218,7 @@ export default function DecisionModal({ isOpen, onClose, expense, onConfirm }) {
               <div className="text-center">
                 <p className="text-sm text-gray-400 mb-2">Pagamento Único</p>
                 <div className="text-3xl font-bold text-blue-400">
-                  {formatMoney(toNumber(expense.value))}
+                  {formatMoney(parseToNumber(expense.value))}
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
                   Venc: {new Date(expense.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
