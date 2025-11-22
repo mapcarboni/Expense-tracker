@@ -6,7 +6,7 @@ import { Header } from '@/components/Header';
 import { MonthSelector } from '@/components/MonthSelector';
 import { SaldoBancario } from '@/components/bills/SaldoBancario';
 import { useAuth } from '@/contexts/AuthContext';
-import { loadMonthBills, getAvailableMonths, getBalance } from '@/lib/billsDb';
+import { loadMonthBills, getAvailableMonths, getBalance, getAvailableYears } from '@/lib/billsDb';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -17,6 +17,7 @@ export default function BillsPage() {
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [availableYears, setAvailableYears] = useState([]);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [bills, setBills] = useState([]);
   const [balance, setBalance] = useState({ balanceB: 0, balanceI: 0 });
@@ -31,8 +32,14 @@ export default function BillsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (userId) {
+      loadAvailableYears();
+    }
+  }, [userId]);
+
+  useEffect(() => {
     if (userId && selectedYear) {
-      loadAvailableMonths();
+      loadAvailableMonthsList();
     }
   }, [userId, selectedYear]);
 
@@ -42,7 +49,17 @@ export default function BillsPage() {
     }
   }, [userId, selectedYear, selectedMonth]);
 
-  const loadAvailableMonths = async () => {
+  const loadAvailableYears = async () => {
+    try {
+      const years = await getAvailableYears(userId);
+      setAvailableYears(years);
+    } catch (error) {
+      console.error('Erro ao carregar anos:', error);
+      setAvailableYears([currentYear]);
+    }
+  };
+
+  const loadAvailableMonthsList = async () => {
     try {
       const months = await getAvailableMonths(userId, selectedYear);
       const allMonths = new Set(months);
@@ -71,7 +88,6 @@ export default function BillsPage() {
       setBills(billsData);
       setBalance(balanceData);
 
-      // Carregar dados de renda dos bills
       const salaryBill = billsData.find((b) => b.category === 'salary');
       const advanceBill = billsData.find((b) => b.category === 'advance');
       const vacationBill = billsData.find((b) => b.category === 'vacation');
@@ -99,7 +115,6 @@ export default function BillsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Salvar aqui
       toast.success('Contas salvas!');
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -129,6 +144,7 @@ export default function BillsPage() {
           saveLoading={isSaving}
           selectedYear={selectedYear}
           onYearChange={handleYearChange}
+          availableYears={availableYears}
         />
 
         <main className="container mx-auto px-4 py-8">

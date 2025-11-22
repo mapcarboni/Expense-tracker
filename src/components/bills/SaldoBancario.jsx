@@ -11,7 +11,7 @@ export function SaldoBancario({
   decimoTerceiro = '',
   month,
   onChange,
-  disabled = false,
+  disabled = false
 }) {
   const showFerias = month === 1 || month === 7;
   const show13 = month === 11 || month === 12;
@@ -26,7 +26,6 @@ export function SaldoBancario({
         Saldo Bancário
       </h3>
 
-      {/* Saldos */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Bradesco:</span>
@@ -39,7 +38,6 @@ export function SaldoBancario({
       </div>
 
       <div className="border-t border-gray-700 pt-4 space-y-3">
-        {/* Salário */}
         <div>
           <label className="block text-xs text-gray-400 mb-1">Pagamento</label>
           <input
@@ -52,7 +50,6 @@ export function SaldoBancario({
           />
         </div>
 
-        {/* Adiantamento */}
         <div>
           <label className="block text-xs text-gray-400 mb-1">Adiantamento</label>
           <input
@@ -65,7 +62,6 @@ export function SaldoBancario({
           />
         </div>
 
-        {/* Férias (Jan/Jul) */}
         {showFerias && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">Férias</label>
@@ -80,7 +76,6 @@ export function SaldoBancario({
           </div>
         )}
 
-        {/* 13º (Nov/Dez) */}
         {show13 && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">13º Salário</label>
