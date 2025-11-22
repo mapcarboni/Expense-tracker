@@ -281,7 +281,7 @@ export default function DecisionPage() {
           getValue(expense, 'value') ||
           getValue(expense, 'cashValue');
         value = parcela * installments;
-        displayText = `${installments}x de ${formatMoney(parcela)} (${formatMoney(value)})`;
+        displayText = `${installments}x de ${formatMoney(parcela)}`;
         date = getDate(expense, 'firstInstallmentDate') || getDate(expense, 'dueDate');
         break;
       }
