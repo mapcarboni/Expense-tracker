@@ -1,6 +1,6 @@
 'use client';
 
-import { formatMoney } from '@/lib/dbHelpers';
+import { formatMoney, parseToNumber } from '@/lib/dbHelpers';
 
 export function SaldoBancario({
   balanceB = 0,
@@ -11,13 +11,20 @@ export function SaldoBancario({
   decimoTerceiro = '',
   month,
   onChange,
-  disabled = false
+  disabled = false,
 }) {
   const showFerias = month === 1 || month === 7;
   const show13 = month === 11 || month === 12;
 
   const handleChange = (field, value) => {
-    onChange({ [field]: value });
+    const cleanValue = value.replace(/[^\d,\.]/g, '');
+    onChange({ [field]: cleanValue });
+  };
+
+  const handleBlur = (field, value) => {
+    if (!value) return;
+    const formatted = formatMoney(value);
+    onChange({ [field]: formatted });
   };
 
   return (
@@ -44,6 +51,7 @@ export function SaldoBancario({
             type="text"
             value={salario}
             onChange={(e) => handleChange('salario', e.target.value)}
+            onBlur={(e) => handleBlur('salario', e.target.value)}
             disabled={disabled}
             placeholder="0,00"
             className="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
@@ -56,6 +64,7 @@ export function SaldoBancario({
             type="text"
             value={adiantamento}
             onChange={(e) => handleChange('adiantamento', e.target.value)}
+            onBlur={(e) => handleBlur('adiantamento', e.target.value)}
             disabled={disabled}
             placeholder="0,00"
             className="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
@@ -69,6 +78,7 @@ export function SaldoBancario({
               type="text"
               value={ferias}
               onChange={(e) => handleChange('ferias', e.target.value)}
+              onBlur={(e) => handleBlur('ferias', e.target.value)}
               disabled={disabled}
               placeholder="0,00"
               className="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
@@ -83,6 +93,7 @@ export function SaldoBancario({
               type="text"
               value={decimoTerceiro}
               onChange={(e) => handleChange('decimoTerceiro', e.target.value)}
+              onBlur={(e) => handleBlur('decimoTerceiro', e.target.value)}
               disabled={disabled}
               placeholder="0,00"
               className="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"

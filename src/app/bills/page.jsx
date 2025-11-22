@@ -7,6 +7,7 @@ import { MonthSelector } from '@/components/MonthSelector';
 import { SaldoBancario } from '@/components/bills/SaldoBancario';
 import { useAuth } from '@/contexts/AuthContext';
 import { loadMonthBills, getAvailableMonths, getBalance, getAvailableYears } from '@/lib/billsDb';
+import { parseToNumber } from '@/lib/dbHelpers';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -42,6 +43,19 @@ export default function BillsPage() {
       loadAvailableMonthsList();
     }
   }, [userId, selectedYear]);
+
+  useEffect(() => {
+    const total =
+      parseToNumber(incomeData.salario) +
+      parseToNumber(incomeData.adiantamento) +
+      parseToNumber(incomeData.ferias) +
+      parseToNumber(incomeData.decimoTerceiro);
+
+    setBalance((prev) => ({
+      balanceB: total,
+      balanceI: prev.balanceI,
+    }));
+  }, [incomeData]);
 
   useEffect(() => {
     if (userId && selectedYear && selectedMonth) {
@@ -170,7 +184,7 @@ export default function BillsPage() {
                 decimoTerceiro={incomeData.decimoTerceiro}
                 month={selectedMonth}
                 onChange={handleIncomeChange}
-                disabled={hasUnsavedChanges}
+                disabled={false}
               />
 
               <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
